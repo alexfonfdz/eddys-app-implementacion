@@ -1,7 +1,40 @@
 document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('downloadBtn').addEventListener('click', function() {
-        alert('Redirigiendo a la descarga de la aplicación...');
-        window.location.href = "download/eddys.apk";
+        // Generar toast de empezando descarga que dure 4 segundos
+        const toast = document.createElement('div');
+        toast.id = 'toast';
+        toast.textContent = 'Descarga iniciada...';
+        document.body.appendChild(toast);
+        setTimeout(() => {
+            toast.classList.add('show');
+        }, 10);
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => {
+                document.body.removeChild(toast);
+            }, 500);
+        }, 4000);
+
+        // Empezar a descargar el archivo de la carpeta downloads
+        const link = document.createElement('a');
+        link.href = 'download/eddys-app.apk';
+        link.download = 'eddys-app.apk';
+        link.click();
+
+        // Generar toast de descarga completada que dure 4 segundos
+        const toast2 = document.createElement('div');
+        toast2.id = 'toast';
+        toast2.textContent = 'Descarga completada';
+        document.body.appendChild(toast2);
+        setTimeout(() => {
+            toast2.classList.add('show');
+        }, 10);
+        setTimeout(() => {
+            toast2.classList.remove('show');
+            setTimeout(() => {
+                document.body.removeChild(toast2);
+            }, 500);
+        }, 4000);
     });
 
     // Carrusel de imágenes
