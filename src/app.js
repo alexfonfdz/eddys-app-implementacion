@@ -33,12 +33,12 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/products', productRoutes);
 
 // Ruta de archivos estáticos
-app.use(express.static("public"));
+app.use(express.static('public'));
 
 // Rutas de ejemplo
 app.get("/", (req, res) => {
   // Mandar a llamar el archivo index.html
-  res.sendFile("index.html", { root: __dirname + "/public" });
+  res.sendFile('index.html', { root: __dirname + '/public' });
 });
 
 // Configuración del puerto
