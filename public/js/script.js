@@ -17,8 +17,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Empezar a descargar el archivo de la carpeta downloads
         const link = document.createElement('a');
-        link.href = 'download/eddys-app-release.apk';
-        link.download = 'eddys-app-release.apk';
+        link.href = 'download/eddys-app.apk';
+        link.download = 'eddys-app.apk';
         link.click();
 
         // Generar toast de descarga completada que dure 4 segundos
