@@ -1,11 +1,16 @@
 const express = require("express");
 const cors = require("cors");
 const rateLimit = require('express-rate-limit');
+const path = require('path'); // Add path module
 const app = express();
 const authRoutes = require('./routes/auth.routes', './routes/user.routes');
 const userRoutes = require('./routes/user.routes');
 const adminRoutes = require('./routes/admin.routes');
 const productRoutes = require('./routes/product.routes');
+const cartRoutes = require('./routes/cart.routes');
+const shippingAddressRoutes = require('./routes/shippingAddress.routes');
+const orderRoutes = require('./routes/order.routes');
+const webhookRoutes = require('./routes/webhook.routes');
 
 // Configurar CORS
 app.use(cors({
@@ -21,24 +26,30 @@ const limiter = rateLimit({
   message: 'Demasiadas peticiones desde esta IP, por favor intente de nuevo después de 15 minutos'
 });
 
-// Middlewares básicos
+// IMPORTANT: Register webhook routes BEFORE body parser middleware
+// This ensures webhook requests are handled with raw body data
+app.use('/api/webhooks', webhookRoutes);
+
+// Middlewares básicos - applied to all routes EXCEPT webhooks
 app.use(express.json());
-app.use(limiter); // Apply rate limiting to all routes
+app.use(limiter);
 app.use(cors());
 
-//Rutas
+// Serve static files from the 'uploads' directory
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+
+// Regular API routes - these will have parsed JSON bodies
 app.use('/api/auth', authRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/products', productRoutes);
-
-// Ruta de archivos estáticos
-app.use(express.static('public'));
+app.use('/api/cart', cartRoutes);
+app.use('/api/shipping-address', shippingAddressRoutes);
+app.use('/api/orders', orderRoutes);
 
 // Rutas de ejemplo
 app.get("/", (req, res) => {
-  // Mandar a llamar el archivo index.html
-  res.sendFile('index.html', { root: __dirname + '/public' });
+  res.send("Backend funcionando ✅");
 });
 
 // Configuración del puerto
