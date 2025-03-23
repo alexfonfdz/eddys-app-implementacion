@@ -47,9 +47,14 @@ app.use('/api/cart', cartRoutes);
 app.use('/api/shipping-address', shippingAddressRoutes);
 app.use('/api/orders', orderRoutes);
 
+
+// Ruta de archivos estáticos
+app.use(express.static("public"));
+ 
 // Rutas de ejemplo
 app.get("/", (req, res) => {
-  res.send("Backend funcionando ✅");
+  // Mandar a llamar el archivo index.html
+  res.sendFile("index.html", { root: __dirname + "/public" });
 });
 
 // Configuración del puerto
