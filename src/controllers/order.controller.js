@@ -4,7 +4,7 @@ const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 // Create a new order
 async function createOrder(req, res) {
     try {
-        const { idPaymentType, idShipmentType, idLocation } = req.body;
+        const { idPaymentType, idShipmentType, idLocation, shipmentValue } = req.body;
         const userId = req.user.userId;
 
         // Validate required fields
@@ -21,10 +21,21 @@ async function createOrder(req, res) {
             });
         }
 
+        // Validate shipment value if provided
+        if (shipmentValue !== undefined) {
+            const shipmentValueNumber = parseFloat(shipmentValue);
+            if (isNaN(shipmentValueNumber) || shipmentValueNumber < 0) {
+                return res.status(400).json({
+                    message: 'Valor de envío inválido'
+                });
+            }
+        }
+
         const result = await orderService.createOrder(userId, {
             idPaymentType: parseInt(idPaymentType),
             idShipmentType: parseInt(idShipmentType),
-            idLocation: idLocation ? parseInt(idLocation) : null
+            idLocation: idLocation ? parseInt(idLocation) : null,
+            shipmentValue: shipmentValue ? parseFloat(shipmentValue) : 0
         });
 
         res.status(201).json(result);
@@ -55,6 +66,19 @@ async function getUserOrders(req, res) {
         const userId = req.user.userId;
 
         const orders = await orderService.getUserOrders(userId);
+
+        res.json(orders);
+    } catch (error) {
+        console.error('Get user orders error:', error);
+        res.status(500).json({ message: error.message });
+    }
+}
+
+async function getUserOrdersDatails(req, res) {
+    try {
+        const userId = req.user.userId;
+
+        const orders = await orderService.getUserOrdersDetailsService(userId);
 
         res.json(orders);
     } catch (error) {
@@ -166,10 +190,100 @@ async function searchOrders(req, res) {
     }
 }
 
+async function getActiveOrders(req, res) {
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+
+        const filter = {
+            status: { notIn: [6, 7] }, // No entregado ni cancelado
+            page,
+            limit
+        };
+
+        const result = await orderService.getOrdersByStatus(filter);
+
+        return res.status(200).json({
+            message: "Órdenes en curso obtenidas correctamente",
+            data: result
+        });
+    } catch (error) {
+        console.error("Error al obtener órdenes activas:", error);
+        return res.status(500).json({ message: "Error al obtener órdenes activas" });
+    }
+}
+
+async function getOrderHistory(req, res) {
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+
+        const filter = {
+            status: { in: [6, 7] }, // Solo entregado y cancelado
+            page,
+            limit
+        };
+
+        const result = await orderService.getOrdersByStatus(filter);
+
+        return res.status(200).json({
+            message: "Historial de órdenes obtenido correctamente",
+            data: result
+        });
+    } catch (error) {
+        console.error("Error al obtener historial de órdenes:", error);
+        return res.status(500).json({ message: "Error al obtener historial de órdenes" });
+    }
+}
+
+async function reoder(req, res) {
+    try {
+        const orderId = parseInt(req.params.orderId);
+        const userId = req.user.userId;
+
+        const result = await orderService.reorderService(userId, orderId);
+
+        return res.status(200).json({
+            message: "Pedido reordenado correctamente, productos agregados al carrito",
+            data: result
+        });
+    } catch (error) {
+        console.error("Error al reordenar:", error);
+        // Custom error handling
+        let message;
+        let status = 400;
+        switch (error.message) {
+            case 'Orden no encontrada':
+                status = 404;
+                message = 'El pedido no existe';
+                break;
+            case 'Ninguno de los productos de la orden esta disponible actualmente':
+                status = 404;
+                message = 'Ninungo de los productos de la orden se encuentran disponible actualmente';
+                break;
+            case 'La orden no pertenece al usuario':
+                status = 403;
+                message = 'No tienes permiso para reordenar este pedido, solo puedes reordenar tus propios pedidos';
+                break;
+            case 'No hay productos válidos con cantidad mayor a cero en la orden':
+                status = 403;
+                message = 'No hay productos válidos con cantidad mayor a cero en la orden';
+                break;
+            default:
+                message = 'Error al reordenar el pedido';
+        }
+        return res.status(status).json({ message });
+    }
+}
+
 module.exports = {
+    getActiveOrders,
+    getOrderHistory,
+    reoder,
     createOrder,
     getOrderDetails,
     getUserOrders,
     handleStripeWebhook,
-    searchOrders
+    searchOrders,
+    getUserOrdersDatails
 }; 

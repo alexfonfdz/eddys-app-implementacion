@@ -158,7 +158,6 @@ async function getProductPersonalizations(req, res) {
         const personalizations = await prisma.productPersonalization.findMany({
             where: {
                 idProduct: productId,
-                status: true
             },
             include: {
                 personalization: true
@@ -187,8 +186,7 @@ async function getProductPersonalizationsForUsers(req, res) {
 
         const personalizations = await prisma.productPersonalization.findMany({
             where: {
-                idProduct: productId,
-                status: true
+                idProduct: productId
             },
             select: {
                 idProductPersonalization: true,
@@ -246,7 +244,7 @@ async function updateProductPersonalization(req, res) {
         });
 
         res.json({
-            message: "Personalización actualizada exitosamente",
+            message: "Personalizacion actualizada exitosamente",
             data: {
                 personalization,
                 productPersonalization
@@ -292,7 +290,7 @@ async function updateProductPersonalizationForUser(req, res) {
 
 
         res.json({
-            message: "Personalización actualizada exitosamente",
+            message: "Personalizacion actualizada exitosamente",
             data: {
                 Personalization,
                 ProductPersonalization
@@ -306,6 +304,182 @@ async function updateProductPersonalizationForUser(req, res) {
         });
     }
 }
+
+async function assignProductPersonalizationToCartItem(req, res) {
+    try {
+        const userId = req.user.userId;
+        const { idItemCart, idProductPersonalization } = req.body;
+
+        if (isNaN(idItemCart) || isNaN(idProductPersonalization)) {
+            return res.status(400).json({ message: "ID inválido" });
+        }
+
+        const productPersonalization = await prisma.productPersonalization.findFirst({
+            where: { idProductPersonalization },
+        });
+
+        if (!productPersonalization) {
+            return res.status(404).json({ message: "La personalización no fue encontrada" });
+        }
+
+        const itemCart = await prisma.itemCart.findFirst({
+            where: { idItemCart },
+            include: { cart: true },
+        });
+
+        if (!itemCart || itemCart.cart?.idUser !== userId) {
+            return res.status(403).json({ message: "No puedes modificar este producto del carrito" });
+        }
+
+        if (itemCart.idProduct !== productPersonalization.idProduct) {
+            return res.status(400).json({ message: "La personalización no corresponde al producto del carrito" });
+        }
+
+        const existing = await prisma.userProductPersonalize.findFirst({
+            where: {
+                idItemCart,
+                idProductPersonalization,
+                itemCart: {
+                    cart: {
+                        idUser: userId,
+                    },
+                },
+            },
+        });
+
+        let updatedOrCreated;
+
+        if (existing) {
+            updatedOrCreated = await prisma.userProductPersonalize.update({
+                where: { idUserProductPersonalize: existing.idUserProductPersonalize },
+                data: { status: true },
+                include: {
+                    productPersonalization: true,
+                    itemCart: true,
+                },
+            });
+        } else {
+            updatedOrCreated = await prisma.userProductPersonalize.create({
+                data: {
+                    idItemCart,
+                    idProductPersonalization,
+                    status: true,
+                },
+                include: {
+                    productPersonalization: true,
+                    itemCart: true,
+                },
+            });
+        }
+
+        res.json({
+            message: "Personalización asignada correctamente al producto del carrito",
+            data: updatedOrCreated,
+        });
+    } catch (error) {
+        console.error("Error al asignar personalización:", error);
+        res.status(500).json({
+            message: "Error al asignar personalización",
+            error: error.message,
+        });
+    }
+}
+
+async function getPersonalizationsForCartItem(req, res) {
+    try {
+        const userId = req.user.userId;
+        const idItemCart = parseInt(req.params.idItemCart);
+
+        if (isNaN(idItemCart)) {
+            return res.status(400).json({ message: "ID inválido" });
+        }
+
+        const itemCart = await prisma.itemCart.findFirst({
+            where: { idItemCart, cart: { idUser: userId } },
+        });
+
+        if (!itemCart) {
+            return res.status(404).json({ message: "Producto del carrito no encontrado" });
+        }
+
+        const personalizations = await prisma.userProductPersonalize.findMany({
+            where: {
+                idItemCart,
+            },
+            include: {
+                productPersonalization: {
+                    include: {
+                        personalization: true,
+                    },
+                },
+                itemCart: true,
+            },
+        });
+
+        const sanitized = personalizations.map(p => ({
+            ...p,
+            productPersonalization: {
+                ...p.productPersonalization,
+                personalization: {
+                    idPersonalization: p.productPersonalization.personalization.idPersonalization,
+                    name: p.productPersonalization.personalization.name,
+                    status: p.productPersonalization.personalization.status,
+                },
+            },
+        }));
+
+        res.json({
+            message: "Personalizaciones recuperadas correctamente",
+            data: sanitized,
+        });
+
+    } catch (error) {
+        console.error("Error al recuperar personalizaciones:", error);
+        res.status(500).json({ message: "Error interno", error: error.message });
+    }
+}
+
+async function togglePersonalizationStatusForCartItem(req, res) {
+    try {
+        const userId = req.user.userId;
+        const id = parseInt(req.params.idUserProductPersonalize);
+        const { status } = req.body;
+
+        if (isNaN(id) || typeof status !== "boolean") {
+            return res.status(400).json({ message: "Datos inválidos" });
+        }
+
+        const personalization = await prisma.userProductPersonalize.findFirst({
+            where: { idUserProductPersonalize: id },
+            include: {
+                itemCart: {
+                    include: {
+                        cart: true,
+                    },
+                },
+            },
+        });
+
+        if (!personalization || personalization.itemCart.cart?.idUser !== userId) {
+            return res.status(403).json({ message: "No puedes modificar esta personalización" });
+        }
+
+        const updated = await prisma.userProductPersonalize.update({
+            where: { idUserProductPersonalize: id },
+            data: { status },
+        });
+
+        res.json({
+            message: `Personalización ${status ? "activada" : "desactivada"} correctamente`,
+            data: updated,
+        });
+    } catch (error) {
+        console.error("Error al cambiar el estado de personalización:", error);
+        res.status(500).json({ message: "Error interno", error: error.message });
+    }
+}
+
+
 
 async function updatePersonalizationStatus(req, res) {
     try {
@@ -569,4 +743,4 @@ async function getPopularProducts(req, res) {
     }
 }
 
-module.exports = { getAllProducts, getAllProductsPagination, getProduct, addProduct, modifyProductDetails, getProductPersonalizations, updateProductPersonalization, updateProductPersonalizationForUser, updatePersonalizationStatus, updatePersonalizationStatusForUser, getProductPersonalizationsForUsers, getProductImage, searchProducts, getPopularProducts, getProductDetails };
+module.exports = { getAllProducts, getAllProductsPagination, getProduct, addProduct, modifyProductDetails, getProductPersonalizations, updateProductPersonalization, updateProductPersonalizationForUser, updatePersonalizationStatus, updatePersonalizationStatusForUser, getProductPersonalizationsForUsers, getProductImage, searchProducts, getPopularProducts, getProductDetails, assignProductPersonalizationToCartItem, getPersonalizationsForCartItem, togglePersonalizationStatusForCartItem };

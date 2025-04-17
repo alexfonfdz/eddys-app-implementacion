@@ -309,7 +309,280 @@ Authorization: Bearer <token>
 
 ## 8. ENDPOINTS DE ADMINISTRADOR
 
-### 8.1 Gestión de Productos
+### 8.1 Gestión de Órdenes
+
+**GET /api/admin/orders**
+
+Obtiene órdenes dentro de un rango de fechas específico.
+
+**Headers Requeridos:**
+
+```
+Authorization: Bearer <token>
+```
+
+**Parámetros de Query:**
+| Parámetro | Tipo | Descripción | Requerido |
+|-----------|------|-------------|-----------|
+| date_from | string | Fecha de inicio (formato YYYY-MM-DD) | Sí |
+| date_to | string | Fecha de fin (formato YYYY-MM-DD) | Sí |
+
+**Ejemplo de uso:**
+
+```
+/api/admin/orders?date_from=2024-07-22&date_to=2024-07-24
+```
+
+**Respuesta Exitosa (200):**
+
+```json
+{
+  "message": "Órdenes obtenidas correctamente",
+  "data": {
+    "orders": [
+      {
+        "idOrder": 42,
+        "idCart": 23,
+        "idPaymentType": 2,
+        "idShipmentType": 1,
+        "idOrderStatus": 2,
+        "totalPrice": 258.0,
+        "paid": true,
+        "paidAt": "2024-07-23T14:35:12Z",
+        "createdAt": "2024-07-23T14:30:45Z",
+        "cart": {
+          "idCart": 23,
+          "user": {
+            "email": "usuario@ejemplo.com",
+            "username": "usuario123",
+            "userInformation": {
+              "name": "JUAN",
+              "lastName": "PÉREZ",
+              "phone": "1234567890"
+            }
+          },
+          "itemsCart": [
+            {
+              "quantity": 2,
+              "individualPrice": 129,
+              "product": {
+                "idProduct": 12,
+                "name": "Tender Box",
+                "description": "Exquisito paquete..."
+              }
+            }
+          ]
+        },
+        "orderStatus": {
+          "idOrderStatus": 2,
+          "status": "Procesando"
+        },
+        "paymentType": {
+          "idPaymentType": 2,
+          "type": "Tarjeta de crédito"
+        },
+        "shipmentType": {
+          "idShipmentType": 1,
+          "type": "Envío a domicilio"
+        },
+        "location": {
+          "street": "Av. Luis Encinas",
+          "houseNumber": "10",
+          "postalCode": "83000",
+          "neighborhood": "Centro"
+        }
+      }
+    ],
+    "count": 1
+  }
+}
+```
+
+**Errores Posibles:**
+
+- 400: Parámetros de fecha faltantes o inválidos
+- 401: Token no proporcionado
+- 403: Usuario no es administrador
+- 500: Error del servidor
+
+**Notas:**
+
+- Este endpoint es exclusivo para administradores
+- La fecha final (date_to) se considera hasta el final del día (23:59:59)
+- Las órdenes se ordenan por fecha de creación (más recientes primero)
+- Se incluyen detalles completos: productos, usuario, estado, información de envío
+
+### 8.2 Obtener detalle de una orden específica
+
+**GET /api/admin/orders/:id**
+
+Obtiene información detallada de una orden específica por su ID.
+
+**Headers Requeridos:**
+
+```
+Authorization: Bearer <token>
+```
+
+**Parámetros URL:**
+| Parámetro | Tipo | Descripción | Requerido |
+|-----------|------|-------------|-----------|
+| id | number | ID de la orden | Sí |
+
+**Respuesta Exitosa (200):**
+
+```json
+{
+  "message": "Orden obtenida correctamente",
+  "data": {
+    "idOrder": 42,
+    "idCart": 23,
+    "idPaymentType": 2,
+    "idShipmentType": 1,
+    "idOrderStatus": 2,
+    "totalPrice": 258.0,
+    "paid": true,
+    "paidAt": "2023-07-15T14:35:12Z",
+    "createdAt": "2023-07-15T14:30:45Z",
+    "deliveryAt": null,
+    "stripePaymentIntentId": "pi_3MkVnL2eZvKYlo2C1IFrG8oM",
+    "stripePaymentStatus": "succeeded",
+    "cart": {
+      "idCart": 23,
+      "user": {
+        "email": "usuario@ejemplo.com",
+        "username": "usuario123",
+        "userInformation": {
+          "name": "JUAN",
+          "lastName": "PÉREZ",
+          "secondLastName": null,
+          "phone": "1234567890"
+        }
+      },
+      "itemsCart": [
+        {
+          "quantity": 2,
+          "individualPrice": 129,
+          "product": {
+            "idProduct": 12,
+            "name": "Tender Box",
+            "description": "Exquisito paquete..."
+          }
+        }
+      ]
+    },
+    "orderStatus": {
+      "idOrderStatus": 2,
+      "status": "Procesando"
+    },
+    "paymentType": {
+      "idPaymentType": 2,
+      "type": "Tarjeta de crédito"
+    },
+    "shipmentType": {
+      "idShipmentType": 1,
+      "type": "Envío a domicilio"
+    },
+    "location": {
+      "street": "Av. Luis Encinas",
+      "houseNumber": "10",
+      "postalCode": "83000",
+      "neighborhood": "Centro"
+    }
+  }
+}
+```
+
+**Errores Posibles:**
+
+- 400: ID de orden inválido
+- 401: Token no proporcionado
+- 403: Usuario no es administrador
+- 404: Orden no encontrada
+- 500: Error del servidor
+
+**Notas:**
+
+- Este endpoint es exclusivo para administradores
+- Incluye detalles completos de la orden: información del cliente, productos, estado, pago y envío
+
+### 8.3 Actualizar Estado de Orden
+
+**PATCH /api/admin/order/:id**
+
+Permite a los administradores cambiar el estado de una orden específica.
+
+**Headers Requeridos:**
+
+```
+Authorization: Bearer <token>
+```
+
+**Parámetros URL:**
+| Parámetro | Tipo | Descripción | Requerido |
+|-----------|------|-------------|-----------|
+| id | number | ID de la orden a actualizar | Sí |
+
+**Cuerpo de la Petición:**
+
+```json
+{
+  "idOrderStatus": 3
+}
+```
+
+**Validaciones:**
+
+- idOrderStatus: Debe ser un número entero válido que corresponda a un estado de orden existente
+
+**Respuesta Exitosa (200):**
+
+```json
+{
+  "message": "Estado de orden actualizado correctamente",
+  "data": {
+    "idOrder": 42,
+    "idCart": 23,
+    "idPaymentType": 2,
+    "idShipmentType": 1,
+    "idOrderStatus": 3,
+    "totalPrice": 258.0,
+    "paid": true,
+    "paidAt": "2024-07-23T14:35:12Z",
+    "createdAt": "2024-07-23T14:30:45Z",
+    "orderStatus": {
+      "idOrderStatus": 3,
+      "status": "En camino"
+    },
+    "paymentType": {
+      "idPaymentType": 2,
+      "type": "Tarjeta de crédito"
+    },
+    "shipmentType": {
+      "idShipmentType": 1,
+      "type": "Envío a domicilio"
+    }
+  }
+}
+```
+
+**Errores Posibles:**
+
+- 400: ID de orden inválido
+- 400: Se requiere un ID de estado de orden válido
+- 401: Token no proporcionado
+- 403: Usuario no es administrador
+- 404: Orden no encontrada
+- 404: Estado de orden no encontrado
+- 500: Error del servidor
+
+**Notas:**
+
+- Este endpoint es exclusivo para administradores
+- Si se actualiza a estado "Entregado" (idOrderStatus 5), automáticamente se actualizará el campo deliveryAt con la fecha actual
+- Los estados de orden posibles se definen en la tabla orderStatus
+
+### 8.2 Gestión de Productos
 
 **GET /api/admin/products**
 
@@ -668,7 +941,182 @@ Authorization: Bearer <token>
 - 403: Usuario no es administrador
 - 500: Error del servidor
 
-### 8.5 Permisos de Administrador
+### 8.5 Obtner ordenes activas con paginacion
+
+**GET /api/admin/orders/current**
+
+Permite a administradores obtener pedidos activos de todos los usuarios con paginación.
+
+**Encabezados Requeridos:**
+
+```
+Authorization: Bearer <token>
+```
+
+**Parámetros de Consulta:**
+
+```
+page: Número de página (default: 1)
+limit: Resultados por página (default: 10)
+```
+
+**Respuesta (200 OK):**
+
+```json
+{
+  "message": "Órdenes en curso obtenidas correctamente",
+  "data": {
+    "orders": [
+      {
+        "idOrder": 4,
+        "idCart": 4,
+        "idPaymentType": 1,
+        "idShipmentType": 1,
+        "idOrderStatus": 1,
+        "idLocation": 1,
+        "createdAt": "2025-04-07T18:39:42.015Z",
+        "deliveryAt": null,
+        "totalPrice": 447,
+        "paid": false,
+        "paidAt": null,
+        "stripePaymentIntentId": null,
+        "stripePaymentStatus": null,
+        "orderStatus": {
+          "idOrderStatus": 1,
+          "status": "Pendiente"
+        },
+        "paymentType": {
+          "idPaymentType": 1,
+          "type": "Efectivo"
+        },
+        "shipmentType": {
+          "idShipmentType": 1,
+          "type": "Envío a domicilio"
+        }
+      },
+      {
+        "idOrder": 3,
+        "idCart": 3,
+        "idPaymentType": 1,
+        "idShipmentType": 1,
+        "idOrderStatus": 1,
+        "idLocation": 1,
+        "createdAt": "2025-04-07T18:39:32.319Z",
+        "deliveryAt": null,
+        "totalPrice": 447,
+        "paid": false,
+        "paidAt": null,
+        "stripePaymentIntentId": null,
+        "stripePaymentStatus": null,
+        "orderStatus": {
+          "idOrderStatus": 1,
+          "status": "Pendiente"
+        },
+        "paymentType": {
+          "idPaymentType": 1,
+          "type": "Efectivo"
+        },
+        "shipmentType": {
+          "idShipmentType": 1,
+          "type": "Envío a domicilio"
+        }
+      }
+    ],
+    "pagination": {
+      "totalItems": 4,
+      "totalPages": 2,
+      "currentPage": 1,
+      "itemsPerPage": 2
+    }
+  }
+}
+```
+
+**Notas:**
+
+- Los pedidos se ordenan por fecha de creación (más recientes primero)
+- Se consideran como ordenes activas, todas aquellas donde su "status" se diferente de "Entregado" o "Cancelado".
+
+**Errores Posibles:**
+
+- 401: Token no proporcionado
+- 500: Error del servidor
+
+### 8.6 Obtner historico de ordenes con paginacion
+
+**GET /api/admin/orders**
+
+Permite a administradores obtener pedidos historicos de todos los usuarios con paginación.
+
+**Encabezados Requeridos:**
+
+```
+Authorization: Bearer <token>
+```
+
+**Parámetros de Consulta:**
+
+```
+page: Número de página (default: 1)
+limit: Resultados por página (default: 10)
+```
+
+**Respuesta (200 OK):**
+
+```json
+{
+  "message": "Historial de órdenes obtenido correctamente",
+  "data": {
+    "orders": [
+      {
+        "idOrder": 5,
+        "idCart": 5,
+        "idPaymentType": 1,
+        "idShipmentType": 1,
+        "idOrderStatus": 7,
+        "idLocation": 1,
+        "createdAt": "2025-04-07T18:39:49.656Z",
+        "deliveryAt": null,
+        "totalPrice": 447,
+        "paid": false,
+        "paidAt": null,
+        "stripePaymentIntentId": null,
+        "stripePaymentStatus": null,
+        "orderStatus": {
+          "idOrderStatus": 7,
+          "status": "Cancelado"
+        },
+        "paymentType": {
+          "idPaymentType": 1,
+          "type": "Efectivo"
+        },
+        "shipmentType": {
+          "idShipmentType": 1,
+          "type": "Envío a domicilio"
+        }
+      }
+    ],
+    "pagination": {
+      "totalItems": 1,
+      "totalPages": 1,
+      "currentPage": 1,
+      "itemsPerPage": 5
+    }
+  }
+}
+```
+
+**Notas:**
+
+- Los pedidos se ordenan por fecha de creación (más recientes primero)
+- Se consideran como ordenes historicas, todas aquellas donde su "status" sea "Entregado" o "Cancelado".
+
+**Errores Posibles:**
+
+- 401: Token no proporcionado
+- 500: Error del servidor
+
+### 8.7 Permisos de Administrador
 
 Para acceder a los endpoints de administrador, el usuario debe:
 
@@ -683,7 +1131,7 @@ Para acceder a los endpoints de administrador, el usuario debe:
 }
 ```
 
-### 8.6 Consideraciones Técnicas
+### 8.8 Consideraciones Técnicas
 
 1. **Transacciones:**
 
@@ -995,7 +1443,43 @@ Authorization: Bearer <token>
 - 404: Producto no encontrado
 - 500: Error del servidor
 
-### 10.6 Modificar cantidad de un producto en el carrito
+### 10.6 Agregar un solo un producto directamente al carrito
+
+**PUT /cart/items/addOneItem/{id}**
+
+**Headers Requeridos:**
+
+```
+Authorization: Bearer <token>
+```
+
+**Respuesta Exitosa (201):**
+
+```json
+{
+  "message": "Cantidad del producto actualizada en el carrito",
+  "cartId": 1,
+  "item": {
+    "idItemCart": 1,
+    "idCart": 1,
+    "idProduct": 1,
+    "quantity": 1,
+    "individualPrice": 89,
+    "status": true
+  }
+}
+```
+
+**Errores Posibles:**
+
+- 401: Token no proporcionado
+- 400: Error de solicitud
+- 403: El producto esta inactivo y no se puede agregar al carrito
+- 404: Producto no encontrado
+- 406: No se puede agregar más de 100 unidades del mismo producto
+- 500: Error del servidor
+
+### 10.7 Modificar cantidad de un producto en el carrito
 
 **PUT /cart/items/{id}**
 
@@ -1033,7 +1517,7 @@ Authorization: Bearer <token>
 - 404: Producto no encontrado
 - 500: Error del servidor
 
-### 10.7 Eliminar un producto en el carrito
+### 10.8 Eliminar un producto en el carrito
 
 **DELETE /cart/items/{id}**
 
@@ -1071,7 +1555,11 @@ Authorization: Bearer <token>
 - 403: Esta producto ya ha sido desactivado en el carrito o este no existe en carrito.
 - 500: Error del servidor
 
-### 10.8 Ver productos en el carrito
+**Notas\***
+
+- El campo `quantity` es fijado en 0 despues de la eliminacion logica.
+
+### 10.9 Ver productos en el carrito
 
 **GET /cart/**
 
@@ -1117,7 +1605,7 @@ Authorization: Bearer <token>
 - 400: Error de peticion
 - 500: Error del servidor
 
-### 10.9 Ver monto total de productos en el carrito
+### 10.10 Ver monto total de productos en el carrito
 
 **GET /cart/total**
 
@@ -1131,12 +1619,10 @@ Authorization: Bearer <token>
 
 ```json
 {
-    {
-    "totalAmount": {
-        "cartId": 1,
-        "totalAmount": 416
-    }
-}
+  "totalAmount": {
+    "cartId": 1,
+    "totalAmount": 416.00
+  }
 }
 ```
 
@@ -1146,7 +1632,250 @@ Authorization: Bearer <token>
 - 400: Error de peticion
 - 500: Error del servidor
 
-### 10.10 Obtener imagen de un producto
+### 10.11 Ver cantidad total de productos en el carrito
+
+**GET /cart/quantity**
+
+**Headers Requeridos:**
+
+```
+Authorization: Bearer <token>
+```
+
+**Respuesta Exitosa (200):**
+
+```json
+{
+  "totalQuantity": {
+    "cartId": 1,
+    "totalQuantity": 5
+  }
+}
+```
+
+**Errores Posibles:**
+
+- 401: Token no proporcionado
+- 400: Error de peticion
+- 500: Error del servidor
+
+### 10.12 Desactivar un carrito activo
+
+**PUT /api/cart/disable**
+
+Desactiva el carrito activo del usuario autenticado, cambiando su estado a inactivo (status = false).
+
+**Headers Requeridos:**
+
+```
+Authorization: Bearer <token>
+```
+
+**Respuesta Exitosa (200):**
+
+```json
+{
+  "message": "Carrito desactivado exitosamente",
+  "cartId": 1,
+  "status": false
+}
+```
+
+**Errores Posibles:**
+
+- 401: Token no proporcionado
+- 404: No se encontró un carrito activo para el usuario
+- 400: Error en la peticion
+- 500: Error del servidor
+
+**Notas:**
+
+- Este endpoint permite desactivar un carrito completo, lo que puede ser útil cuando se completa una compra o se quiere iniciar un carrito nuevo
+- El carrito desactivado se mantiene en la base de datos pero no aparecerá en las consultas de carritos activos
+
+### 10.13 Obtener productos del carrito por ID
+
+**GET /cart/{id}**
+
+**Headers Requeridos:**
+
+```
+Authorization: Bearer <token>
+```
+
+**Parámetros URL:**
+
+- id: ID del producto a eliminar en el carrito
+
+**Respuesta Exitosa (200):**
+
+```json
+{
+  "message": "Carrito obtenido correctamente",
+  "data": {
+    "idCart": 1,
+    "idUser": 1,
+    "status": true,
+    "items": [
+      {
+        "idItemCart": 1,
+        "idCart": 1,
+        "idProduct": 2,
+        "quantity": 2,
+        "individualPrice": 149,
+        "status": true,
+        "product": {
+          "idProduct": 2,
+          "idProductType": 1,
+          "idUserAdded": 1,
+          "name": "Pizza Pepperoni",
+          "description": "Pizza con pepperoni, queso y salsa de tomate",
+          "price": 149.99,
+          "status": true,
+          "createdAt": "2025-04-11T05:12:42.992Z"
+        }
+      }
+    ]
+  }
+}
+```
+
+**Errores Posibles:**
+
+- 401: Token no proporcionado
+- 400: Error de peticion
+- 403: No tienes permiso para ver este carrito
+- 500: Error del servidor
+
+**Notas:**
+
+- Los usuario administradores pueden consultar cualquier carrito por ID
+- Los usuario cliente puende consultar cualquier carrito por ID miestra les pernesca
+
+### 10.14 Obtener carritos de un usuario por ID
+
+- Permite obtener todos lo carrito existentes que pertenescan a un usuario especifico
+- Para usarios administradores
+
+**GET /api/admin/cart/user/{id}**
+
+**Headers Requeridos:**
+
+```
+Authorization: Bearer <token>
+```
+
+**Parámetros URL:**
+
+- id: ID del usuario del cual se busca obtener sus carritos
+
+**Respuesta Exitosa (200):**
+
+```json
+{
+  "message": "Carritos del usuario 2 obtenidos correctamente",
+  "data": [
+    {
+      "idCart": 2,
+      "idUser": 2,
+      "status": true,
+      "createdAt": "2025-04-11T17:24:39.685Z",
+      "itemsCart": [
+        {
+          "idItemCart": 3,
+          "idCart": 2,
+          "idProduct": 1,
+          "quantity": 1,
+          "individualPrice": 89,
+          "status": true,
+          "product": {
+            "idProduct": 1,
+            "idProductType": 1,
+            "idUserAdded": 1,
+            "name": "Hamburguesa Clásica",
+            "description": "Hamburguesa con carne, lechuga, tomate y queso",
+            "price": 89.99,
+            "status": true,
+            "createdAt": "2025-04-11T17:24:17.404Z"
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+**Errores Posibles:**
+
+- 401: Token no proporcionado
+- 400: Error de peticion
+- 403: Usuario no es adminstrador
+- 500: Error del servidor
+
+**Notas:**
+
+- Los usuario administradores pueden consultar cualquier listado de carritos por ID
+
+### 10.15 Obtener carritos pertenecientes a un usuario autenticado
+
+- Permite obtener todos lo carrito existentes que pertenescan a un usuario especifico
+- Para usarios administradores
+
+**GET /api/cart/user**
+
+**Headers Requeridos:**
+
+```
+Authorization: Bearer <token>
+```
+
+**Respuesta Exitosa (200):**
+
+```json
+{
+  "message": "Carritos del usuario autenticado obtenidos correctamente",
+  "data": [
+    {
+      "idCart": 2,
+      "idUser": 2,
+      "status": true,
+      "createdAt": "2025-04-11T17:24:39.685Z",
+      "itemsCart": [
+        {
+          "idItemCart": 3,
+          "idCart": 2,
+          "idProduct": 1,
+          "quantity": 1,
+          "individualPrice": 89,
+          "status": true,
+          "product": {
+            "idProduct": 1,
+            "idProductType": 1,
+            "idUserAdded": 1,
+            "name": "Hamburguesa Clásica",
+            "description": "Hamburguesa con carne, lechuga, tomate y queso",
+            "price": 89.99,
+            "status": true,
+            "createdAt": "2025-04-11T17:24:17.404Z"
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+**Errores Posibles:**
+
+- 401: Token no proporcionado
+- 400: Error de peticion
+- 500: Error del servidor
+
+**Notas:**
+
+- Los usuario administradores pueden consultar cualquier listado de carritos por ID
+
+### 10.16 Obtener imagen de un producto
 
 **GET /api/products/:id/image**
 
@@ -1169,7 +1898,7 @@ Obtiene la imagen de un producto específico.
 - 404: Imagen no encontrada en el servidor
 - 500: Error al obtener la imagen del producto
 
-### 10.11 Subir imagen de un producto (Admin)
+### 10.17 Subir imagen de un producto (Admin)
 
 **POST /api/admin/products/:id/image**
 
@@ -1228,7 +1957,7 @@ Content-Type: multipart/form-data
 - 403: Usuario no es administrador
 - 500: Error al subir la imagen del producto
 
-### 10.12 Buscar productos
+### 10.18 Buscar productos
 
 **GET /api/products/search**
 
@@ -1302,7 +2031,7 @@ Authorization: Bearer <token>
 - 401: Token no proporcionado
 - 500: Error del servidor
 
-### 10.13 Obtener Productos Populares
+### 10.19 Obtener Productos Populares
 
 **GET /api/products/popular**
 
@@ -1350,7 +2079,7 @@ limit: Número de productos a retornar (default: 5)
 - 401: Token no proporcionado
 - 500: Error del servidor
 
-### 10.14 Obetner detalles del producto por ID
+### 10.20 Obetner detalles del producto por ID
 
 **GET /products/{id}**
 
@@ -1413,11 +2142,11 @@ Authorization: Bearer <token>
 - 404: No se encontro el producto
 - 500: Error del servidor
 
-### 10.15 Editar Personalización de Producto para usuarios
+### 10.21 Asginar Personalización a un Producto en el Carrito de compras.
 
-**PUT /api/products/{id}/user/personalization**
+**PUT /api/products/cart/items/personalizations**
 
-Actualiza o crea una personalización para un producto específico.
+Asigna personalizaciones disponibles del catalogo de cuztomizaciones para un producto especifico a un articulo añadido al carrito de compras.
 
 **Headers Requeridos:**
 
@@ -1425,59 +2154,70 @@ Actualiza o crea una personalización para un producto específico.
 Authorization: Bearer <token>
 ```
 
-**Parámetros URL:**
-| Parámetro | Tipo | Descripción |
-|-----------|------|-------------|
-| id | number | ID del producto |
-
 **Cuerpo de la Petición:**
 
 ```json
 {
-  "name": "Nombre de la personalización",
-  "status": true
+    "idItemCart":2, 
+    "idProductPersonalization":5
 }
 ```
 
 **Validaciones:**
 
-- name: String no vacío
-- status: Boolean requerido
+- idItemCart": valor numerico requerido 
+- idProductPersonalization:valor numerico requerido
 
 **Respuesta Exitosa (200):**
 
 ```json
 {
-  "message": "Personalización actualizada exitosamente",
-  "data": {
-    "Personalization": {
-      "idPersonalization": 4,
-      "name": "Sin mayonesa",
-      "status": true,
-      "createdAt": "2025-03-20T23:42:04.590Z"
-    },
-    "ProductPersonalization": {
-      "idProductPersonalization": 7,
-      "idProduct": 1,
-      "idPersonalization": 4,
-      "status": true
+    "message": "Personalización asignada correctamente al producto del carrito",
+    "data": {
+        "idUserProductPersonalize": 1,
+        "idItemCart": 1,
+        "idProductPersonalization": 1,
+        "status": true,
+        "productPersonalization": {
+            "idProductPersonalization": 1,
+            "idUserAdded": 1,
+            "idProduct": 1,
+            "idPersonalization": 1,
+            "status": true
+        },
+        "itemCart": {
+            "idItemCart": 1,
+            "idCart": 1,
+            "idProduct": 1,
+            "quantity": 1,
+            "individualPrice": 89,
+            "status": true
+        }
     }
-  }
 }
+
 ```
 
 **Errores Posibles:**
 
-- 400: Producto no encontrado
+- 400: ID inválido
 - 400: Datos de personalización inválidos
 - 401: Token no proporcionado
+- 403: No puedes modificar este producto del carrito
+- 403: La personalización no corresponde al producto del carrito
+- 404: La personalización no fue encontrada
 - 500: Error del servidor
 
-### 10.16 Obtner Personalizaciónes de Producto para usuarios
+**NOTAS** 
+
+- Se valida que el producto en el carrito pertenesca al usuario.
+- Las personalizaciones a asignar, deben estan disponibles para el producto.
+
+### 10.22 Obtner Personalizaciónes disponibles para un Producto.
 
 **GET /api/products/{id}/user/personalizations**
 
-Obtiene los detalles de las personalizaciónes para un producto específico.
+Obtiene los detalles de las personalizaciónes que se ecuentran disponibles a asginar para un producto específico.
 
 **Headers Requeridos:**
 
@@ -1538,11 +2278,71 @@ Authorization: Bearer <token>
 - 401: Token no proporcionado
 - 500: Error del servidor
 
-### 10.17 Cambiar status activo o inactivo de la Personalización de Producto para usuarios
+### 10.23 Obtner Personalizaciónes de Producto especifico en el Carrito de compras.
 
-**PACTH /api/products/{idProduct}/user/personalization/{idProductPersonalization}/status**
+**GET api/cart/items/personalizations/{:idItemCart}**
 
-Cambia el estado de activo o inactivo de personalización para un producto específico.
+Obtiene la lista de las personalizaciónes asignadas para un producto en el carrito.
+
+**Headers Requeridos:**
+
+```
+Authorization: Bearer <token>
+```
+
+**Parámetros URL:**
+| Parámetro | Tipo | Descripción |
+|-----------|------|-------------|
+| idItemCart | number | ID del producto en el carrito |
+
+**Respuesta Exitosa (200):**
+
+```json
+{
+    "message": "Personalizaciones recuperadas correctamente",
+    "data": [
+        {
+            "idUserProductPersonalize": 1,
+            "idItemCart": 1,
+            "idProductPersonalization": 5,
+            "status": true,
+            "productPersonalization": {
+                "idProductPersonalization": 5,
+                "idUserAdded": 1,
+                "idProduct": 2,
+                "idPersonalization": 2,
+                "status": true,
+                "personalization": {
+                    "idPersonalization": 2,
+                    "name": "Extra Queso",
+                    "status": true
+                }
+            },
+            "itemCart": {
+                "idItemCart": 1,
+                "idCart": 1,
+                "idProduct": 2,
+                "quantity": 1,
+                "individualPrice": 149,
+                "status": true
+            }
+        }
+    ]
+}
+```
+
+**Errores Posibles:**
+
+- 400: ID inválido
+- 401: Token no proporcionado
+- 404: Producto del carrito no encontrado
+- 500: Error del servidor
+
+### 10.23 Cambiar status activo o inactivo de la Personalización asignada a un Producto en el carrito de compras
+
+**PACTH api/cart/items/personalizations/:idUserProductPersonalize/status**
+
+Cambia el estado de activo o inactivo de personalización asiginada para un producto específico en el carrito.
 
 **Headers Requeridos:**
 
@@ -1554,7 +2354,7 @@ Authorization: Bearer <token>
 | Parámetro | Tipo | Descripción |
 |-----------|------|-------------|
 | idProduct | number | ID del producto |
-| idProductPersonalization | number | ID de la personalizacion del producto |
+| idUserProductPersonalize | number | ID de la personalizacion del producto en el carrito de compras |
 
 **Cuerpo de la Petición:**
 
@@ -1572,21 +2372,13 @@ Authorization: Bearer <token>
 
 ```json
 {
-  "message": "Estado de personalización actualizado correctamente",
-  "data": {
-    "personalization": {
-      "idProductPersonalization": 1,
-      "idProduct": 1,
-      "idPersonalization": 1,
-      "status": false,
-      "personalization": {
-        "idPersonalization": 1,
-        "name": "Sin Cebolla",
-        "status": true,
-        "createdAt": "2025-03-20T23:40:57.273Z"
-      }
+    "message": "Personalización desactivada correctamente",
+    "data": {
+        "idUserProductPersonalize": 2,
+        "idItemCart": 2,
+        "idProductPersonalization": 5,
+        "status": true
     }
-  }
 }
 ```
 
@@ -1595,7 +2387,11 @@ Authorization: Bearer <token>
 - 400: Producto no encontrado
 - 400: Datos de personalización inválidos
 - 401: Token no proporcionado
+- 403: No puedes modificar esta personalización
 - 500: Error del servidor
+
+**NOTAS**
+- Se valida que la personalizacion pertesca al usuario
 
 ## 11. ENDPOINTS DE DIRECCIONES
 
@@ -1687,7 +2483,44 @@ Authorization: Bearer <token>
 - 400: Usuario no autorizado o inactivo
 - 500: Error del servidor
 
-### 11.3 Obtener una dirección específica (compatibilidad)
+### 11.3 Obtener una dirección por ID
+
+**GET /api/shipping-address/:id**
+
+**Headers Requeridos:**
+
+```
+Authorization: Bearer <token>
+```
+
+**Parámetros URL:**
+
+- id: ID de la dirección a consultar
+
+**Respuesta Exitosa (200):**
+
+```json
+{
+  "message": "Dirección obtenida correctamente",
+  "data": {
+    "idLocation": 2,
+    "idUserInformation": 2,
+    "street": "Av. Luis Encinas Jhonson",
+    "houseNumber": "10",
+    "postalCode": "83000",
+    "neighborhood": "Centro",
+    "status": true
+  }
+}
+```
+
+**Errores Posibles:**
+
+- 401: Token no proporcionado
+- 400: Dirección no encontrada o no autorizada
+- 500: Error del servidor
+
+### 11.4 Obtener una dirección específica (compatibilidad)
 
 **GET /api/shipping-address/single**
 
@@ -1850,11 +2683,12 @@ Authorization: Bearer <token>
 
 **Cuerpo de la Solicitud:**
 
-```
+```json
 {
-  "idPaymentType": 2,   // 1=Efectivo, 2=Crédito, 3=Débito
-  "idShipmentType": 1,  // 1=Envío, 2=Recogida
-  "idLocation": 3       // Opcional, requerido para envío
+  "idPaymentType": 2, // 1=Efectivo, 2=Crédito, 3=Débito
+  "idShipmentType": 1, // 1=Envío, 2=Recogida
+  "idLocation": 3, // Opcional, requerido para envío
+  "shipmentValue": 50 // Valor del envío que se sumará al total
 }
 ```
 
@@ -1862,7 +2696,7 @@ Authorization: Bearer <token>
 
 Para pagos con tarjeta (tipos 2, 3):
 
-```
+```json
 {
   "order": {
     "idOrder": 42,
@@ -1870,7 +2704,8 @@ Para pagos con tarjeta (tipos 2, 3):
     "idPaymentType": 2,
     "idShipmentType": 1,
     "idOrderStatus": 1,
-    "totalPrice": 258.00,
+    "totalPrice": 308.0, // Incluye el valor de los productos (258) + envío (50)
+    "shipmentValue": 50.0, // Valor del envío
     "paid": false,
     "createdAt": "2023-07-15T14:30:45Z",
     "stripePaymentIntentId": "pi_3MkVnL2eZvKYlo2C1IFrG8oM",
@@ -1885,7 +2720,7 @@ Para pagos con tarjeta (tipos 2, 3):
 
 Para pagos en efectivo (tipo 1):
 
-```
+```json
 {
   "order": {
     "idOrder": 43,
@@ -1893,7 +2728,8 @@ Para pagos en efectivo (tipo 1):
     "idPaymentType": 1,
     "idShipmentType": 2,
     "idOrderStatus": 1,
-    "totalPrice": 129.00,
+    "totalPrice": 129.0, // No incluye valor de envío cuando es recogida
+    "shipmentValue": 0.0, // Para recogida, el valor de envío es 0
     "paid": false,
     "createdAt": "2023-07-15T15:12:23Z"
   }
@@ -1904,6 +2740,7 @@ Para pagos en efectivo (tipo 1):
 
 - 400: No hay productos en el carrito
 - 400: Se requieren tipo de pago y tipo de envío
+- 400: Valor de envío inválido
 - 401: Token no proporcionado
 - 500: Error del servidor
 
@@ -2112,7 +2949,137 @@ limit: Resultados por página (default: 10)
 - 401: Token no proporcionado
 - 500: Error del servidor
 
-### 14.5 Webhook de Stripe
+## 14.5 Reodernar pedido
+
+**PUT /api/orders/:idOrder**
+
+Permite agregar productos de una orden ya existente al carrito de compras.
+
+**Encabezados Requeridos:**
+
+```
+Authorization: Bearer <token>
+```
+
+**Parámetros URL:**
+
+- idOrder: ID de pedido existente a reodenar
+
+**Respuesta Exitosa (200):**
+
+```json
+{
+  "message": "Pedido reordenado correctamente, productos agregados al carrito",
+  "data": {
+    "cartId": 2,
+    "items": [
+      {
+        "idProduct": 2,
+        "quantity": 3,
+        "individualPrice": 149.99,
+        "status": true,
+        "idCart": 2
+      }
+    ]
+  }
+}
+```
+
+**Notas:**
+
+- Los productos existentes en el carrito de compras activo, son reemplados por los de los del pedido a reordenar.
+- Se valida que si lo productos a reordenar son los mismos a los ya existentes el carrito de compras, no se efectuen cambios.
+
+**Errores Posibles:**
+
+- 401: Token no proporcionado
+- 400: ID inválido
+- 403: Orden no encontrada o sin permiso para eliminar
+- 409: El carrito ya contiene los mismos productos
+- 500: Error del servidor
+
+### 14.6 Obtener Detalles de Pedidos perteneciantes a un usaurio.
+
+**GET /api/orders/datails**
+
+Recupera información detallada sobre pedidos correspondientes a un usuario autenticado.
+
+**Encabezados Requeridos:**
+
+```
+Authorization: Bearer <token>
+```
+
+**Respuesta (200 OK):**
+
+```
+[
+    {
+        "idOrder": 1,
+        "idCart": 1,
+        "idPaymentType": 1,
+        "idShipmentType": 1,
+        "idOrderStatus": 1,
+        "idLocation": 1,
+        "createdAt": "2025-04-13T22:09:19.812Z",
+        "deliveryAt": null,
+        "totalPrice": 149,
+        "shipmentValue": 0,
+        "paid": false,
+        "paidAt": null,
+        "stripePaymentIntentId": null,
+        "stripeClientSecret": null,
+        "stripePaymentStatus": null,
+        "cart": {
+            "idCart": 1,
+            "idUser": 2,
+            "status": false,
+            "createdAt": "2025-04-13T22:09:09.499Z",
+            "itemsCart": [
+                {
+                    "idItemCart": 1,
+                    "idCart": 1,
+                    "idProduct": 2,
+                    "quantity": 1,
+                    "individualPrice": 149,
+                    "status": true,
+                    "product": {
+                        "idProduct": 2,
+                        "idProductType": 1,
+                        "idUserAdded": 1,
+                        "name": "Pizza Pepperoni",
+                        "description": "Pizza con pepperoni, queso y salsa de tomate",
+                        "price": 149.99,
+                        "status": true,
+                        "createdAt": "2025-04-13T22:08:08.840Z"
+                    }
+                }
+            ]
+        },
+        "paymentType": {
+            "idPaymentType": 1,
+            "type": "Efectivo"
+        },
+        "shipmentType": {
+            "idShipmentType": 1,
+            "type": "Envío a domicilio"
+        },
+        "orderStatus": {
+            "idOrderStatus": 1,
+            "status": "Pendiente"
+        }
+    }
+]
+```
+
+**Respuestas de Error:**
+
+- 400: Ordenes no encontradas
+- 401: Token no proporcionado
+- 500: Error del servidor
+
+
+### 14.7 Webhook de Stripe
 
 **POST /api/webhooks/stripe**
 
