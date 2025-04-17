@@ -47,6 +47,9 @@ app.use('/api/cart', cartRoutes);
 app.use('/api/shipping-address', shippingAddressRoutes);
 app.use('/api/orders', orderRoutes);
 
+// Ruta de archivos estáticos
+app.use(express.static("public"));
+ 
 // Rutas de ejemplo
 app.get("/", (req, res) => {
   // Mandar a llamar el archivo index.html
