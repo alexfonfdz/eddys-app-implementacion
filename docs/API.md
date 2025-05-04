@@ -992,7 +992,14 @@ limit: Resultados por página (default: 10)
         "shipmentType": {
           "idShipmentType": 1,
           "type": "Envío a domicilio"
-        }
+        },
+        "location": {
+          "street": "Av. Luis Encinas",
+          "houseNumber": "10",
+          "postalCode": "83000",
+          "neighborhood": "Centro"
+        },
+        "locationFormatted": "Av. Luis Encinas, 10\nCentro\n83000"
       },
       {
         "idOrder": 3,
@@ -1019,7 +1026,14 @@ limit: Resultados por página (default: 10)
         "shipmentType": {
           "idShipmentType": 1,
           "type": "Envío a domicilio"
-        }
+        },
+        "location": {
+          "street": "Av. Luis Encinas",
+          "houseNumber": "10",
+          "postalCode": "83000",
+          "neighborhood": "Centro"
+        },
+        "locationFormatted": "Av. Luis Encinas, 10\nCentro\n83000"
       }
     ],
     "pagination": {
@@ -1093,7 +1107,14 @@ limit: Resultados por página (default: 10)
         "shipmentType": {
           "idShipmentType": 1,
           "type": "Envío a domicilio"
-        }
+        },
+        "location": {
+          "street": "Av. Luis Encinas",
+          "houseNumber": "10",
+          "postalCode": "83000",
+          "neighborhood": "Centro"
+        },
+        "locationFormatted": "Av. Luis Encinas, 10\nCentro\n83000"
       }
     ],
     "pagination": {
@@ -1116,7 +1137,117 @@ limit: Resultados por página (default: 10)
 - 401: Token no proporcionado
 - 500: Error del servidor
 
-### 8.7 Permisos de Administrador
+### 8.7 Obtner orodenes filtradas por productos
+
+** GET /api/admin/orders/by-products **
+
+Permite a administradores obtener pedidos de todos los usuarios filtrando por productos, con orden descendente.
+
+**Encabezados Requeridos:**
+
+```
+Authorization: Bearer <token>
+```
+
+**Parámetros de Consulta:**
+
+```
+product_id: ID de los productos
+```
+
+**Respuesta (200 OK):**
+[
+{
+"idOrder": 1,
+"idCart": 1,
+"idPaymentType": 1,
+"idShipmentType": 1,
+"idOrderStatus": 1,
+"idLocation": 1,
+"createdAt": "2025-04-29T20:18:58.341Z",
+"deliveryAt": null,
+"totalPrice": 719.94,
+"shipmentValue": 0,
+"paid": false,
+"paidAt": null,
+"stripePaymentIntentId": null,
+"stripeClientSecret": null,
+"stripePaymentStatus": null,
+"cart": {
+"idCart": 1,
+"idUser": 2,
+"status": false,
+"createdAt": "2025-04-29T20:18:38.253Z",
+"itemsCart": [
+{
+"idItemCart": 1,
+"idCart": 1,
+"idProduct": 1,
+"quantity": 3,
+"individualPrice": 89.99,
+"status": true,
+"product": {
+"idProduct": 1,
+"idProductType": 1,
+"idUserAdded": 1,
+"name": "Hamburguesa Clásica",
+"description": "Hamburguesa con carne, lechuga, tomate y queso",
+"price": 89.99,
+"status": true,
+"createdAt": "2025-04-29T20:17:37.039Z"
+}
+},
+{
+"idItemCart": 2,
+"idCart": 1,
+"idProduct": 2,
+"quantity": 3,
+"individualPrice": 149.99,
+"status": true,
+"product": {
+"idProduct": 2,
+"idProductType": 1,
+"idUserAdded": 1,
+"name": "Pizza Pepperoni",
+"description": "Pizza con pepperoni, queso y salsa de tomate",
+"price": 149.99,
+"status": true,
+"createdAt": "2025-04-29T20:17:37.039Z"
+}
+}
+]
+},
+"paymentType": {
+"idPaymentType": 1,
+"type": "Efectivo"
+},
+"shipmentType": {
+"idShipmentType": 1,
+"type": "Envío a domicilio"
+},
+"orderStatus": {
+"idOrderStatus": 1,
+"status": "Pendiente"
+},
+"location": {
+"idLocation": 1,
+"idUserInformation": 1,
+"street": "Nouvel",
+"houseNumber": "18",
+"postalCode": "83288",
+"neighborhood": "Jardines de Mónaco",
+"status": true
+},
+"locationFormatted": "Nouvel, 18\nJardines de Mónaco\n83288"
+}
+]
+
+**Errores Posibles:**
+
+- 401: Token no proporcionado
+- 500: Error del servidor
+
+### 8.8 Permisos de Administrador
 
 Para acceder a los endpoints de administrador, el usuario debe:
 
@@ -1131,7 +1262,7 @@ Para acceder a los endpoints de administrador, el usuario debe:
 }
 ```
 
-### 8.8 Consideraciones Técnicas
+### 8.9 Consideraciones Técnicas
 
 1. **Transacciones:**
 
@@ -1441,6 +1572,7 @@ Authorization: Bearer <token>
 - 401: Token no proporcionado
 - 400: Error de solicitud
 - 404: Producto no encontrado
+- 406: El carrito no puede contener mas de 30 productos
 - 500: Error del servidor
 
 ### 10.6 Agregar un solo un producto directamente al carrito
@@ -1476,10 +1608,69 @@ Authorization: Bearer <token>
 - 400: Error de solicitud
 - 403: El producto esta inactivo y no se puede agregar al carrito
 - 404: Producto no encontrado
-- 406: No se puede agregar más de 100 unidades del mismo producto
+- 406: El carrito no puede contener mas de 30 productos
 - 500: Error del servidor
 
-### 10.7 Modificar cantidad de un producto en el carrito
+### 10.7 Agregar producto al carrito de compras con perosnzonalizaciones
+
+**PUT /api/cart/items/new/{id}**
+
+Permite agregar productos al carrito de compras con o sin personalizaciones.
+
+- Si el producto ya existe en el carrito con las mismas personalizaciones, se actualiza la cantidad.
+
+**Headers Requeridos:**
+
+```
+Authorization: Bearer <token>
+Content-Type: application/json
+```
+
+**Parámetros URL:**
+
+| Parámetro | Tipo   | Descripción     |
+| --------- | ------ | --------------- |
+| id        | number | ID del producto |
+
+**Cuerpo de la solicitud (JSON):**
+
+```json
+{
+  "quantity": 2,
+  "personalizations": [1, 2, 3]
+}
+```
+
+- `quantity`: (obligatorio) número entero mayor a 0.
+- `personalizations`: (opcional) arreglo de IDs de personalizaciones : `idProductPersonalization` (enteros). Puede estar vacío.
+
+**Respuesta Exitosa (201):**
+
+```json
+{
+  "cartId": 1,
+  "item": {
+    "idItemCart": 1,
+    "idCart": 1,
+    "idProduct": 1,
+    "quantity": 2,
+    "individualPrice": 89.99,
+    "status": true
+  },
+  "updated": false
+}
+```
+
+**Errores Posibles:**
+
+- 400: Error en los datos enviados (IDs no válidos, campos incorrectos)
+- 401: Token no proporcionado
+- 403: El producto está inactivo y no se puede agregar al carrito
+- 404: Producto no encontrado
+- 406: El carrito no puede contener más de 30 productos
+- 500: Error del servidor
+
+### 10.8 Modificar cantidad de un producto en el carrito
 
 **PUT /cart/items/{id}**
 
@@ -1515,9 +1706,10 @@ Authorization: Bearer <token>
 - 401: Token no proporcionado
 - 400: Error de solicitud
 - 404: Producto no encontrado
+- 406: El carrito no puede contener mas de 30 productos
 - 500: Error del servidor
 
-### 10.8 Eliminar un producto en el carrito
+### 10.9 Eliminar un producto en el carrito
 
 **DELETE /cart/items/{id}**
 
@@ -1559,7 +1751,7 @@ Authorization: Bearer <token>
 
 - El campo `quantity` es fijado en 0 despues de la eliminacion logica.
 
-### 10.9 Ver productos en el carrito
+### 10.10 Ver productos en el carrito
 
 **GET /cart/**
 
@@ -1605,7 +1797,69 @@ Authorization: Bearer <token>
 - 400: Error de peticion
 - 500: Error del servidor
 
-### 10.10 Ver monto total de productos en el carrito
+### 10.11 Obenter ultima instancia `itemCart` generada en el carrito de compras, para un producto especifico.
+
+Obtiene el último `itemCart` (registro más reciente) para un producto específico dentro del carrito activo del usuario. Incluye personalizaciones activas si existen.
+
+**GET /api/cart/items/last/{id}**
+
+**Headers Requeridos:**
+
+```
+Authorization: Bearer <token>
+```
+
+**Parámetros URL:**
+| Parámetro | Tipo | Descripción |
+|-----------|------|-------------|
+| id | number | ID del producto |
+
+**Respuesta Exitosa (200):**
+
+```json
+{
+  "cartId": 1,
+  "item": {
+    "idItemCart": 1,
+    "idCart": 1,
+    "idProduct": 1,
+    "quantity": 2,
+    "individualPrice": 89.99,
+    "status": true,
+    "name": "Hamburguesa Clásica",
+    "userProductPersonalize": [
+      {
+        "idUserProductPersonalize": 1,
+        "idItemCart": 1,
+        "idProductPersonalization": 1,
+        "status": true,
+        "personalization": {
+          "idPersonalization": 1,
+          "name": "Sin cebolla"
+        }
+      },
+      {
+        "idUserProductPersonalize": 2,
+        "idItemCart": 1,
+        "idProductPersonalization": 2,
+        "status": true,
+        "personalization": {
+          "idPersonalization": 2,
+          "name": "Extra queso"
+        }
+      }
+    ]
+  }
+}
+```
+
+**Errores Posibles:**
+
+- 401: Token no proporcionado
+- 400: Error de peticion
+- 500: Error del servidor
+
+### 10.12 Ver monto total de productos en el carrito
 
 **GET /cart/total**
 
@@ -1621,7 +1875,7 @@ Authorization: Bearer <token>
 {
   "totalAmount": {
     "cartId": 1,
-    "totalAmount": 416.00
+    "totalAmount": 416.0
   }
 }
 ```
@@ -1632,7 +1886,7 @@ Authorization: Bearer <token>
 - 400: Error de peticion
 - 500: Error del servidor
 
-### 10.11 Ver cantidad total de productos en el carrito
+### 10.13 Ver cantidad total de productos en el carrito
 
 **GET /cart/quantity**
 
@@ -1659,7 +1913,7 @@ Authorization: Bearer <token>
 - 400: Error de peticion
 - 500: Error del servidor
 
-### 10.12 Desactivar un carrito activo
+### 10.14 Desactivar un carrito activo
 
 **PUT /api/cart/disable**
 
@@ -1693,7 +1947,7 @@ Authorization: Bearer <token>
 - Este endpoint permite desactivar un carrito completo, lo que puede ser útil cuando se completa una compra o se quiere iniciar un carrito nuevo
 - El carrito desactivado se mantiene en la base de datos pero no aparecerá en las consultas de carritos activos
 
-### 10.13 Obtener productos del carrito por ID
+### 10.15 Obtener productos del carrito por ID
 
 **GET /cart/{id}**
 
@@ -1752,7 +2006,7 @@ Authorization: Bearer <token>
 - Los usuario administradores pueden consultar cualquier carrito por ID
 - Los usuario cliente puende consultar cualquier carrito por ID miestra les pernesca
 
-### 10.14 Obtener carritos de un usuario por ID
+### 10.16 Obtener carritos de un usuario por ID
 
 - Permite obtener todos lo carrito existentes que pertenescan a un usuario especifico
 - Para usarios administradores
@@ -1816,7 +2070,7 @@ Authorization: Bearer <token>
 
 - Los usuario administradores pueden consultar cualquier listado de carritos por ID
 
-### 10.15 Obtener carritos pertenecientes a un usuario autenticado
+### 10.17 Obtener carritos pertenecientes a un usuario autenticado
 
 - Permite obtener todos lo carrito existentes que pertenescan a un usuario especifico
 - Para usarios administradores
@@ -1875,7 +2129,7 @@ Authorization: Bearer <token>
 
 - Los usuario administradores pueden consultar cualquier listado de carritos por ID
 
-### 10.16 Obtener imagen de un producto
+### 10.18 Obtener imagen de un producto
 
 **GET /api/products/:id/image**
 
@@ -1890,6 +2144,27 @@ Obtiene la imagen de un producto específico.
 
 - Devuelve directamente el archivo de imagen
 
+**Nota:**
+
+- Cuando se obtiene la información de un producto a través de cualquiera de los endpoints correspondientes (como `GET /api/products`, `GET /api/products/:id`, etc.), estos pueden incluir un campo `image_url` que contiene la ruta a este endpoint para obtener la imagen del producto.
+- Este campo `image_url` solo se incluye si el producto tiene una imagen asociada.
+
+**Ejemplo de respuesta con imagen_url:**
+
+```json
+{
+  "idProduct": 7,
+  "idProductType": 1,
+  "idUserAdded": 1,
+  "name": "burger2",
+  "description": "Hamburguesa de pollo",
+  "price": 100,
+  "status": true,
+  "createdAt": "2025-04-29T02:43:23.947Z",
+  "image_url": "/api/products/7/image"
+}
+```
+
 **Errores Posibles:**
 
 - 400: ID de producto inválido
@@ -1898,7 +2173,7 @@ Obtiene la imagen de un producto específico.
 - 404: Imagen no encontrada en el servidor
 - 500: Error al obtener la imagen del producto
 
-### 10.17 Subir imagen de un producto (Admin)
+### 10.19 Subir imagen de un producto (Admin)
 
 **POST /api/admin/products/:id/image**
 
@@ -1957,7 +2232,7 @@ Content-Type: multipart/form-data
 - 403: Usuario no es administrador
 - 500: Error al subir la imagen del producto
 
-### 10.18 Buscar productos
+### 10.20 Buscar productos
 
 **GET /api/products/search**
 
@@ -2031,7 +2306,7 @@ Authorization: Bearer <token>
 - 401: Token no proporcionado
 - 500: Error del servidor
 
-### 10.19 Obtener Productos Populares
+### 10.21 Obtener Productos Populares
 
 **GET /api/products/popular**
 
@@ -2079,7 +2354,7 @@ limit: Número de productos a retornar (default: 5)
 - 401: Token no proporcionado
 - 500: Error del servidor
 
-### 10.20 Obetner detalles del producto por ID
+### 10.22 Obetner detalles del producto por ID
 
 **GET /products/{id}**
 
@@ -2142,7 +2417,7 @@ Authorization: Bearer <token>
 - 404: No se encontro el producto
 - 500: Error del servidor
 
-### 10.21 Asginar Personalización a un Producto en el Carrito de compras.
+### 10.23 Asginar Personalización a un Producto en el Carrito de compras.
 
 **PUT /api/products/cart/items/personalizations**
 
@@ -2158,44 +2433,43 @@ Authorization: Bearer <token>
 
 ```json
 {
-    "idItemCart":2, 
-    "idProductPersonalization":5
+  "idItemCart": 2,
+  "idProductPersonalization": 5
 }
 ```
 
 **Validaciones:**
 
-- idItemCart": valor numerico requerido 
+- idItemCart": valor numerico requerido
 - idProductPersonalization:valor numerico requerido
 
 **Respuesta Exitosa (200):**
 
 ```json
 {
-    "message": "Personalización asignada correctamente al producto del carrito",
-    "data": {
-        "idUserProductPersonalize": 1,
-        "idItemCart": 1,
-        "idProductPersonalization": 1,
-        "status": true,
-        "productPersonalization": {
-            "idProductPersonalization": 1,
-            "idUserAdded": 1,
-            "idProduct": 1,
-            "idPersonalization": 1,
-            "status": true
-        },
-        "itemCart": {
-            "idItemCart": 1,
-            "idCart": 1,
-            "idProduct": 1,
-            "quantity": 1,
-            "individualPrice": 89,
-            "status": true
-        }
+  "message": "Personalización asignada correctamente al producto del carrito",
+  "data": {
+    "idUserProductPersonalize": 1,
+    "idItemCart": 1,
+    "idProductPersonalization": 1,
+    "status": true,
+    "productPersonalization": {
+      "idProductPersonalization": 1,
+      "idUserAdded": 1,
+      "idProduct": 1,
+      "idPersonalization": 1,
+      "status": true
+    },
+    "itemCart": {
+      "idItemCart": 1,
+      "idCart": 1,
+      "idProduct": 1,
+      "quantity": 1,
+      "individualPrice": 89,
+      "status": true
     }
+  }
 }
-
 ```
 
 **Errores Posibles:**
@@ -2208,12 +2482,12 @@ Authorization: Bearer <token>
 - 404: La personalización no fue encontrada
 - 500: Error del servidor
 
-**NOTAS** 
+**NOTAS**
 
 - Se valida que el producto en el carrito pertenesca al usuario.
 - Las personalizaciones a asignar, deben estan disponibles para el producto.
 
-### 10.22 Obtner Personalizaciónes disponibles para un Producto.
+### 10.24 Obtner Personalizaciónes disponibles para un Producto.
 
 **GET /api/products/{id}/user/personalizations**
 
@@ -2278,7 +2552,7 @@ Authorization: Bearer <token>
 - 401: Token no proporcionado
 - 500: Error del servidor
 
-### 10.23 Obtner Personalizaciónes de Producto especifico en el Carrito de compras.
+### 10.25 Obtner Personalizaciónes de Producto especifico en el Carrito de compras.
 
 **GET api/cart/items/personalizations/{:idItemCart}**
 
@@ -2299,35 +2573,35 @@ Authorization: Bearer <token>
 
 ```json
 {
-    "message": "Personalizaciones recuperadas correctamente",
-    "data": [
-        {
-            "idUserProductPersonalize": 1,
-            "idItemCart": 1,
-            "idProductPersonalization": 5,
-            "status": true,
-            "productPersonalization": {
-                "idProductPersonalization": 5,
-                "idUserAdded": 1,
-                "idProduct": 2,
-                "idPersonalization": 2,
-                "status": true,
-                "personalization": {
-                    "idPersonalization": 2,
-                    "name": "Extra Queso",
-                    "status": true
-                }
-            },
-            "itemCart": {
-                "idItemCart": 1,
-                "idCart": 1,
-                "idProduct": 2,
-                "quantity": 1,
-                "individualPrice": 149,
-                "status": true
-            }
+  "message": "Personalizaciones recuperadas correctamente",
+  "data": [
+    {
+      "idUserProductPersonalize": 1,
+      "idItemCart": 1,
+      "idProductPersonalization": 5,
+      "status": true,
+      "productPersonalization": {
+        "idProductPersonalization": 5,
+        "idUserAdded": 1,
+        "idProduct": 2,
+        "idPersonalization": 2,
+        "status": true,
+        "personalization": {
+          "idPersonalization": 2,
+          "name": "Extra Queso",
+          "status": true
         }
-    ]
+      },
+      "itemCart": {
+        "idItemCart": 1,
+        "idCart": 1,
+        "idProduct": 2,
+        "quantity": 1,
+        "individualPrice": 149,
+        "status": true
+      }
+    }
+  ]
 }
 ```
 
@@ -2338,7 +2612,7 @@ Authorization: Bearer <token>
 - 404: Producto del carrito no encontrado
 - 500: Error del servidor
 
-### 10.23 Cambiar status activo o inactivo de la Personalización asignada a un Producto en el carrito de compras
+### 10.26 Cambiar status activo o inactivo de la Personalización asignada a un Producto en el carrito de compras
 
 **PACTH api/cart/items/personalizations/:idUserProductPersonalize/status**
 
@@ -2372,13 +2646,13 @@ Authorization: Bearer <token>
 
 ```json
 {
-    "message": "Personalización desactivada correctamente",
-    "data": {
-        "idUserProductPersonalize": 2,
-        "idItemCart": 2,
-        "idProductPersonalization": 5,
-        "status": true
-    }
+  "message": "Personalización desactivada correctamente",
+  "data": {
+    "idUserProductPersonalize": 2,
+    "idItemCart": 2,
+    "idProductPersonalization": 5,
+    "status": true
+  }
 }
 ```
 
@@ -2391,6 +2665,7 @@ Authorization: Bearer <token>
 - 500: Error del servidor
 
 **NOTAS**
+
 - Se valida que la personalizacion pertesca al usuario
 
 ## 11. ENDPOINTS DE DIRECCIONES
@@ -2439,7 +2714,7 @@ Authorization: Bearer <token>
 - 400: Error de solicitud
 - 500: Error del servidor
 
-### 11.2 Obtener todas las direcciones del usuario
+### 11.2 Obtener todas las direcciones activas del usuario
 
 **GET /api/shipping-address**
 
@@ -2483,7 +2758,51 @@ Authorization: Bearer <token>
 - 400: Usuario no autorizado o inactivo
 - 500: Error del servidor
 
-### 11.3 Obtener una dirección por ID
+### 11.3 Obtener todas las direcciones registradas del usuario
+
+**GET /api/shipping-address/all**
+
+**Headers Requeridos:**
+
+```
+Authorization: Bearer <token>
+```
+
+**Respuesta Exitosa (200):**
+
+```json
+{
+  "message": "Direcciones obtenidas correctamente",
+  "data": [
+    {
+      "idLocation": 2,
+      "idUserInformation": 2,
+      "street": "Av. Luis Encinas Jhonson",
+      "houseNumber": "10",
+      "postalCode": "83000",
+      "neighborhood": "Centro",
+      "status": true
+    },
+    {
+      "idLocation": 3,
+      "idUserInformation": 2,
+      "street": "Av. Luis Encinas Jhonson",
+      "houseNumber": "11",
+      "postalCode": "83000",
+      "neighborhood": "Centro",
+      "status": false
+    }
+  ]
+}
+```
+
+**Errores Posibles:**
+
+- 401: Token no proporcionado
+- 400: Usuario no autorizado o inactivo
+- 500: Error del servidor
+
+### 11.4 Obtener una dirección por ID
 
 **GET /api/shipping-address/:id**
 
@@ -2520,7 +2839,7 @@ Authorization: Bearer <token>
 - 400: Dirección no encontrada o no autorizada
 - 500: Error del servidor
 
-### 11.4 Obtener una dirección específica (compatibilidad)
+### 11.5 Obtener una dirección específica (compatibilidad)
 
 **GET /api/shipping-address/single**
 
@@ -2553,7 +2872,40 @@ Authorization: Bearer <token>
 - 400: No se encontró dirección activa para este usuario
 - 500: Error del servidor
 
-### 11.4 Actualizar una dirección
+### 11.6 Obtener la ultima direccion dirección registrada del usuario
+
+**GET /api/shipping-address/last**
+
+**Headers Requeridos:**
+
+```
+Authorization: Bearer <token>
+```
+
+**Respuesta Exitosa (200):**
+
+```json
+{
+  "message": "Dirección obtenida correctamente",
+  "data": {
+    "idLocation": 2,
+    "idUserInformation": 2,
+    "street": "Av. Luis Encinas Jhonson",
+    "houseNumber": "10",
+    "postalCode": "83000",
+    "neighborhood": "Centro",
+    "status": true
+  }
+}
+```
+
+**Errores Posibles:**
+
+- 401: Token no proporcionado
+- 400: No se encontró dirección registrada para este usuario
+- 500: Error del servidor
+
+### 11.7 Actualizar una dirección
 
 **PUT /api/shipping-address/:id**
 
@@ -2602,7 +2954,7 @@ Authorization: Bearer <token>
 - 403: Dirección no encontrada o sin permiso para modificar
 - 500: Error del servidor
 
-### 11.5 Eliminar una dirección
+### 11.8 Eliminar una dirección
 
 **DELETE /api/shipping-address/:id**
 
@@ -3067,7 +3419,14 @@ Authorization: Bearer <token>
         "orderStatus": {
             "idOrderStatus": 1,
             "status": "Pendiente"
-        }
+        },
+        "location": {
+            "street": "Av. Luis Encinas",
+            "houseNumber": "10",
+            "postalCode": "83000",
+            "neighborhood": "Centro"
+        },
+        "locationFormatted": "Av. Luis Encinas, 10\nCentro\n83000"
     }
 ]
 ```
@@ -3077,7 +3436,6 @@ Authorization: Bearer <token>
 - 400: Ordenes no encontradas
 - 401: Token no proporcionado
 - 500: Error del servidor
-
 
 ### 14.7 Webhook de Stripe
 
@@ -3149,25 +3507,443 @@ El cuerpo es un objeto de evento generado por Stripe. Aquí hay un ejemplo simpl
 2. El cuerpo de la petición debe estar en formato raw (no JSON parseado) para verificar la firma.
 3. Requiere una clave secreta de webhook configurada en el .env para mayor seguridad.
 
+## 15. SISTEMA DE NOTIFICACIONES
+
+El sistema de notificaciones permite enviar mensajes push a los usuarios de la aplicación utilizando el servicio Expo Push Notifications.
+
+### 15.1 Obtener Todas las Notificaciones (Solo Administradores)
+
+**GET /api/admin/notifications**
+
+Obtiene todas las notificaciones generadas en el sistema con paginación.
+
+**Headers Requeridos:**
+
+```
+Authorization: Bearer <token>
 ```
 
-## 15. NOTAS TÉCNICAS ADICIONALES
+**Parámetros de Query:**
+| Parámetro | Tipo | Descripción | Requerido |
+|-----------|------|-------------|-----------|
+| page | number | Número de página | No (default: 1) |
+| limit | number | Elementos por página | No (default: 10) |
 
-### 15.1 Paginación
+**Respuesta Exitosa (200):**
+
+```json
+{
+  "message": "Notificaciones obtenidas correctamente",
+  "data": {
+    "notifications": [
+      {
+        "id": 42,
+        "title": "Nuevo pedido #123",
+        "body": "Se ha recibido un nuevo pedido",
+        "type": "ORDER_CREATED",
+        "data": {
+          "orderId": 123
+        },
+        "read": false,
+        "createdAt": "2025-05-03T18:35:12Z"
+      },
+      {
+        "id": 41,
+        "title": "Pago procesado",
+        "body": "Pago exitoso para el pedido #122",
+        "type": "PAYMENT_SUCCESS",
+        "data": {
+          "orderId": 122
+        },
+        "read": true,
+        "createdAt": "2025-05-03T16:22:45Z"
+      }
+    ],
+    "pagination": {
+      "totalItems": 42,
+      "totalPages": 5,
+      "currentPage": 1,
+      "itemsPerPage": 10
+    }
+  }
+}
+```
+
+**Errores Posibles:**
+
+- 401: Token no proporcionado
+- 403: Usuario no es administrador
+- 500: Error del servidor
+
+### 15.2 Obtener Notificaciones No Leídas (Solo Administradores)
+
+**GET /api/admin/notifications/unread**
+
+Obtiene todas las notificaciones no leídas para los administradores.
+
+**Headers Requeridos:**
+
+```
+Authorization: Bearer <token>
+```
+
+**Parámetros de Query:**
+| Parámetro | Tipo | Descripción | Requerido |
+|-----------|------|-------------|-----------|
+| limit | number | Máximo número de notificaciones a retornar | No (default: 10) |
+
+**Respuesta Exitosa (200):**
+
+```json
+{
+  "message": "Notificaciones no leídas obtenidas correctamente",
+  "data": {
+    "count": 3,
+    "notifications": [
+      {
+        "id": 42,
+        "title": "Nuevo pedido #123",
+        "body": "Se ha recibido un nuevo pedido",
+        "type": "ORDER_CREATED",
+        "data": {
+          "orderId": 123
+        },
+        "read": false,
+        "createdAt": "2025-05-03T18:35:12Z"
+      },
+      {
+        "id": 40,
+        "title": "Problema con pago",
+        "body": "Pago fallido para el pedido #121",
+        "type": "PAYMENT_FAILED",
+        "data": {
+          "orderId": 121,
+          "errorReason": "insufficient_funds"
+        },
+        "read": false,
+        "createdAt": "2025-05-03T15:10:23Z"
+      },
+      {
+        "id": 38,
+        "title": "Stock bajo",
+        "body": "El producto 'Hamburguesa Clásica' tiene stock bajo",
+        "type": "LOW_STOCK",
+        "data": {
+          "productId": 1,
+          "currentStock": 5
+        },
+        "read": false,
+        "createdAt": "2025-05-03T12:45:19Z"
+      }
+    ]
+  }
+}
+```
+
+**Errores Posibles:**
+
+- 401: Token no proporcionado
+- 403: Usuario no es administrador
+- 500: Error del servidor
+
+### 15.3 Marcar Notificación como Leída (Solo Administradores)
+
+**PATCH /api/admin/notifications/:id/read**
+
+Marca una notificación específica como leída.
+
+**Headers Requeridos:**
+
+```
+Authorization: Bearer <token>
+```
+
+**Parámetros URL:**
+| Parámetro | Tipo | Descripción | Requerido |
+|-----------|------|-------------|-----------|
+| id | number | ID de la notificación | Sí |
+
+**Respuesta Exitosa (200):**
+
+```json
+{
+  "message": "Notificación marcada como leída",
+  "data": {
+    "id": 42,
+    "read": true,
+    "updatedAt": "2025-05-04T09:15:33Z"
+  }
+}
+```
+
+**Errores Posibles:**
+
+- 400: ID de notificación inválido
+- 401: Token no proporcionado
+- 403: Usuario no es administrador
+- 404: Notificación no encontrada
+- 500: Error del servidor
+
+### 15.4 Marcar Todas las Notificaciones como Leídas (Solo Administradores)
+
+**PATCH /api/admin/notifications/read-all**
+
+Marca todas las notificaciones no leídas como leídas.
+
+**Headers Requeridos:**
+
+```
+Authorization: Bearer <token>
+```
+
+**Respuesta Exitosa (200):**
+
+```json
+{
+  "message": "Todas las notificaciones marcadas como leídas",
+  "data": {
+    "count": 3,
+    "updatedAt": "2025-05-04T09:20:45Z"
+  }
+}
+```
+
+**Errores Posibles:**
+
+- 401: Token no proporcionado
+- 403: Usuario no es administrador
+- 500: Error del servidor
+
+### 15.5 Registro de Token de Dispositivo
+
+**POST /api/notifications/register**
+
+Registra un nuevo token de dispositivo para recibir notificaciones push.
+
+**Headers Requeridos:**
+
+```
+Authorization: Bearer <token>
+```
+
+**Cuerpo de la Petición:**
+
+```json
+{
+  "token": "ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxxxx]",
+  "deviceInfo": {
+    "platform": "ios",
+    "model": "iPhone 13",
+    "osVersion": "16.3.1"
+  }
+}
+```
+
+**Validaciones:**
+
+- `token`: Debe ser un token de Expo válido
+- `deviceInfo`: Objeto opcional con información del dispositivo
+
+**Respuesta Exitosa (200):**
+
+```json
+{
+  "message": "Token registrado correctamente",
+  "success": true
+}
+```
+
+**Errores Posibles:**
+
+- 400: Se requiere token
+- 400: Token inválido
+- 401: Token de autenticación no proporcionado
+- 500: Error al registrar el token
+
+### 15.2 Eliminación de Token de Dispositivo
+
+**POST /api/notifications/unregister**
+
+Elimina un token de dispositivo para dejar de recibir notificaciones.
+
+**Headers Requeridos:**
+
+```
+Authorization: Bearer <token>
+```
+
+**Cuerpo de la Petición:**
+
+```json
+{
+  "token": "ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxxxx]"
+}
+```
+
+**Respuesta Exitosa (200):**
+
+```json
+{
+  "message": "Token eliminado correctamente",
+  "success": true
+}
+```
+
+**Errores Posibles:**
+
+- 400: Se requiere token
+- 400: Token inválido
+- 401: Token de autenticación no proporcionado
+- 500: Error al eliminar el token
+
+### 15.3 Enviar Notificación a un Usuario (Solo Administradores)
+
+**POST /api/notifications/send**
+
+Envía una notificación a un usuario específico.
+
+**Headers Requeridos:**
+
+```
+Authorization: Bearer <token>
+```
+
+**Cuerpo de la Petición:**
+
+```json
+{
+  "userId": 2,
+  "title": "Tu pedido está en camino",
+  "body": "Estamos entregando tu pedido #42 y llegará pronto",
+  "data": {
+    "type": "ORDER_UPDATE",
+    "orderId": 42,
+    "status": "EN_CAMINO"
+  }
+}
+```
+
+**Validaciones:**
+
+- `userId`: ID del usuario destinatario (requerido)
+- `title`: Título de la notificación (requerido)
+- `body`: Contenido de la notificación (requerido)
+- `data`: Objeto con datos adicionales (opcional)
+
+**Respuesta Exitosa (200):**
+
+```json
+{
+  "message": "Notificación enviada correctamente",
+  "data": {
+    "success": true,
+    "tickets": [{ "id": "ticket-id-1", "status": "ok" }]
+  },
+  "success": true
+}
+```
+
+**Errores Posibles:**
+
+- 400: Se requieren userId, título y mensaje
+- 401: Token de autenticación no proporcionado
+- 403: Solo los administradores pueden enviar notificaciones
+- 500: Error al enviar la notificación
+
+### 15.4 Enviar Notificaciones en Masa (Solo Administradores)
+
+**POST /api/notifications/send-bulk**
+
+Envía notificaciones a varios usuarios a la vez.
+
+**Headers Requeridos:**
+
+```
+Authorization: Bearer <token>
+```
+
+**Cuerpo de la Petición:**
+
+```json
+{
+  "userIds": [1, 2, 3, 4],
+  "title": "¡Oferta especial!",
+  "body": "Aprovecha 20% de descuento en todos nuestros productos",
+  "data": {
+    "type": "PROMOTION",
+    "promoCode": "EDDY20"
+  }
+}
+```
+
+**Validaciones:**
+
+- `userIds`: Array de IDs de usuarios (requerido)
+- `title`: Título de la notificación (requerido)
+- `body`: Contenido de la notificación (requerido)
+- `data`: Objeto con datos adicionales (opcional)
+
+**Respuesta Exitosa (200):**
+
+```json
+{
+  "message": "Notificaciones enviadas correctamente",
+  "data": {
+    "success": true,
+    "tickets": [
+      { "id": "ticket-id-1", "status": "ok" },
+      { "id": "ticket-id-2", "status": "ok" }
+      // ...
+    ]
+  },
+  "success": true
+}
+```
+
+**Errores Posibles:**
+
+- 400: Se requiere un array de userIds, título y mensaje
+- 401: Token de autenticación no proporcionado
+- 403: Solo los administradores pueden enviar notificaciones
+- 500: Error al enviar las notificaciones
+
+### 15.5 Notificaciones Automáticas
+
+El sistema envía automáticamente notificaciones en los siguientes eventos:
+
+1. **Actualización de Estado de Pedido**
+
+   - Se envía cuando el administrador cambia el estado de un pedido
+   - El usuario recibe una notificación con el nuevo estado
+   - La notificación incluye el ID del pedido y el nombre del nuevo estado
+
+2. **Pago Exitoso**
+
+   - Se envía cuando un pago con Stripe es completado exitosamente
+   - La notificación confirma que el pago ha sido procesado
+   - Incluye el monto pagado y el ID del pedido
+
+3. **Pago Fallido**
+   - Se envía cuando un intento de pago con Stripe falla
+   - La notificación informa que hubo un problema con el pago
+   - Incluye el motivo del error y pasos a seguir
+
+## 16. NOTAS TÉCNICAS ADICIONALES
+
+### 16.1 Paginación
 
 - Implementada en listado de productos
 - 5 productos por página
 - Incluye total de páginas y página actual
 
-### 15.2 Validaciones
+### 16.2 Validaciones
 
 - Uso de Zod para validación de datos
 - Manejo de errores específicos por campo
 - Transformación automática de tipos
 
-### 15.3 Seguridad
+### 16.3 Seguridad
 
 - Verificación de roles para endpoints administrativos
 - Validación de propiedad de recursos
 - Sanitización de datos de entrada
-```

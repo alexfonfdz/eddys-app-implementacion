@@ -8,27 +8,27 @@ const prisma = require('../lib/prisma');
 async function getOrdersByDateRange(req, res) {
     try {
         const { date_from, date_to } = req.query;
-        
+
         // Validate date parameters
         if (!date_from || !date_to) {
-            return res.status(400).json({ 
-                message: 'Se requieren los parámetros date_from y date_to' 
+            return res.status(400).json({
+                message: 'Se requieren los parámetros date_from y date_to'
             });
         }
-        
+
         // Parse and validate dates
         const fromDate = new Date(date_from);
         const toDate = new Date(date_to);
-        
+
         if (isNaN(fromDate.getTime()) || isNaN(toDate.getTime())) {
-            return res.status(400).json({ 
-                message: 'Formato de fecha inválido. Use YYYY-MM-DD' 
+            return res.status(400).json({
+                message: 'Formato de fecha inválido. Use YYYY-MM-DD'
             });
         }
-        
+
         // Set toDate to end of day (23:59:59)
         toDate.setHours(23, 59, 59, 999);
-        
+
         // Query orders within date range
         const orders = await prisma.order.findMany({
             where: {
@@ -67,12 +67,12 @@ async function getOrdersByDateRange(req, res) {
             },
             orderBy: { createdAt: 'desc' }
         });
-        
+
         return res.status(200).json({
             message: 'Órdenes obtenidas correctamente',
             data: { orders, count: orders.length }
         });
-        
+
     } catch (error) {
         console.error('Error fetching orders by date range:', error);
         return res.status(500).json({
@@ -82,6 +82,57 @@ async function getOrdersByDateRange(req, res) {
     }
 }
 
+const getOrdersByProducts = async (req, res) => {
+    try {
+        const productIds = [].concat(req.query.product_id).map(id => parseInt(id));
+
+        const orders = await prisma.order.findMany({
+            include: {
+                cart: {
+                    include: {
+                        itemsCart: {
+                            where: { status: true },
+                            include: { product: true }
+                        }
+                    }
+                },
+                paymentType: true,
+                shipmentType: true,
+                orderStatus: true,
+                location: true
+            },
+            orderBy: { createdAt: "desc" }
+        });
+
+        const filteredOrders = orders.filter(order => {
+            const orderProductIds = order.cart.itemsCart.map(item => item.idProduct).sort();
+            const targetIds = [...productIds].sort();
+
+            return (
+                orderProductIds.length === targetIds.length &&
+                orderProductIds.every((id, i) => id === targetIds[i])
+            );
+        });
+
+        const result = filteredOrders.map(order => {
+            let locationFormatted = null;
+            if (order.location) {
+                locationFormatted = `${order.location.street}, ${order.location.houseNumber}\n${order.location.neighborhood}\n${order.location.postalCode}`;
+            }
+
+            return {
+                ...order,
+                locationFormatted
+            };
+        });
+
+        return res.json(result);
+    } catch (error) {
+        console.error("Error al obtener órdenes exactas por productos:", error);
+        return res.status(500).json({ message: "Error del servidor" });
+    }
+};
+
 /**
  * Get order details by ID (Admin only)
  * @param {Object} req - Express request object 
@@ -90,14 +141,14 @@ async function getOrdersByDateRange(req, res) {
 async function getOrderById(req, res) {
     try {
         const { id } = req.params;
-        
+
         // Validate order ID
         if (!id || isNaN(parseInt(id))) {
             return res.status(400).json({
                 message: 'ID de orden inválido'
             });
         }
-        
+
         // Query the order with all its details
         const order = await prisma.order.findUnique({
             where: { idOrder: parseInt(id) },
@@ -130,18 +181,18 @@ async function getOrderById(req, res) {
                 location: true
             }
         });
-        
+
         if (!order) {
             return res.status(404).json({
                 message: 'Orden no encontrada'
             });
         }
-        
+
         return res.status(200).json({
             message: 'Orden obtenida correctamente',
             data: order
         });
-        
+
     } catch (error) {
         console.error('Error fetching order by ID:', error);
         return res.status(500).json({
@@ -160,69 +211,15 @@ async function updateOrderStatus(req, res) {
     try {
         const { id } = req.params;
         const { idOrderStatus } = req.body;
-
-        // Validate order ID
-        if (!id || isNaN(parseInt(id))) {
-            return res.status(400).json({
-                message: 'ID de orden inválido'
-            });
-        }
-
-        // Validate order status ID
-        if (!idOrderStatus || isNaN(parseInt(idOrderStatus))) {
-            return res.status(400).json({
-                message: 'Se requiere un ID de estado de orden válido'
-            });
-        }
-
-        // Check if the order exists
-        const orderExists = await prisma.order.findUnique({
-            where: { idOrder: parseInt(id) }
-        });
-
-        if (!orderExists) {
-            return res.status(404).json({
-                message: 'Orden no encontrada'
-            });
-        }
-
-        // Check if the order status exists
-        const statusExists = await prisma.orderStatus.findUnique({
-            where: { idOrderStatus: parseInt(idOrderStatus) }
-        });
-
-        if (!statusExists) {
-            return res.status(404).json({
-                message: 'Estado de orden no encontrado'
-            });
-        }
-
-        // Update the order status
-        const updatedOrder = await prisma.order.update({
-            where: { idOrder: parseInt(id) },
-            data: { idOrderStatus: parseInt(idOrderStatus) },
-            include: {
-                orderStatus: true,
-                paymentType: true,
-                shipmentType: true
-            }
-        });
-
-        // If the order status changed to "Delivered" (assuming idOrderStatus 5 is for delivered)
-        if (parseInt(idOrderStatus) === 5) {  // Replace with your actual "Delivered" status ID
-            updatedOrder.deliveryAt = new Date();
-            
-            await prisma.order.update({
-                where: { idOrder: parseInt(id) },
-                data: { deliveryAt: updatedOrder.deliveryAt }
-            });
-        }
-
-        return res.status(200).json({
-            message: 'Estado de orden actualizado correctamente',
-            data: updatedOrder
-        });
-
+        
+        // Use the adminOrderNotification controller to handle the update
+        // This way we ensure the notification is sent and use the same validation logic
+        const adminOrderNotificationController = require('./adminOrderNotification.controller');
+        
+        // We need to adapt the request parameters to match the controller's expectations
+        req.params.orderId = id;
+        
+        return adminOrderNotificationController.updateOrderStatus(req, res);
     } catch (error) {
         console.error('Error updating order status:', error);
         return res.status(500).json({
@@ -235,5 +232,6 @@ async function updateOrderStatus(req, res) {
 module.exports = {
     getOrdersByDateRange,
     getOrderById,
-    updateOrderStatus
+    updateOrderStatus,
+    getOrdersByProducts
 };

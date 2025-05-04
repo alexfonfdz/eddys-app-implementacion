@@ -117,10 +117,20 @@ async function getProduct(req, res) {
             });
         }
 
+        // Check if product image exists (only jpg now)
+        const imagePath = path.join(__dirname, '../../uploads/products', `product-${product.idProduct}.jpg`);
+        
+        let productWithImage = {...product};
+        
+        if (fs.existsSync(imagePath)) {
+            // Add image URL only if the image exists
+            productWithImage.image_url = `/api/products/${product.idProduct}/image`;
+        }
+
         res.json({
             message: "Producto obtenido correctamente",
             data: {
-                product: product
+                product: productWithImage
             }
         });
     } catch (error) {
@@ -575,27 +585,18 @@ async function getProductImage(req, res) {
             });
         }
 
-        // Look for the product image with exact filename pattern
+        // Now all images are JPG format
         const uploadDir = path.join(__dirname, '../../uploads/products');
-        const expectedFilename = `product-${productId}`;
-
-        // Get all files in the directory
-        const files = fs.readdirSync(uploadDir);
-
-        // Find the file that matches our pattern (allowing for any extension)
-        const productImage = files.find(file => {
-            const filename = path.parse(file).name; // Get filename without extension
-            return filename === expectedFilename;
-        });
-
-        if (!productImage) {
+        const imagePath = path.join(uploadDir, `product-${productId}.jpg`);
+        
+        if (!fs.existsSync(imagePath)) {
             return res.status(404).json({
                 message: "Este producto no tiene una imagen"
             });
         }
 
         // Send the image file
-        res.sendFile(path.join(uploadDir, productImage));
+        res.sendFile(imagePath);
 
     } catch (error) {
         console.error('Error getting product image:', error);
@@ -665,11 +666,23 @@ const searchProducts = async (req, res) => {
                 name: 'asc'
             }
         });
+        
+        // Add image URL to each product only if image exists (only jpg now)
+        const productsWithImages = await Promise.all(products.map(async product => {
+            const imagePath = path.join(__dirname, '../../uploads/products', `product-${product.idProduct}.jpg`);
+            
+            let productWithImage = {...product};
+            if (fs.existsSync(imagePath)) {
+                // Add image URL only if the image exists
+                productWithImage.image_url = `/api/products/${product.idProduct}/image`;
+            }
+            return productWithImage;
+        }));
 
         return res.status(200).json({
             message: "Productos encontrados",
             data: {
-                products,
+                products: productsWithImages,
                 pagination: {
                     totalItems: totalCount,
                     totalPages: Math.ceil(totalCount / parseInt(limit)),
@@ -720,11 +733,22 @@ async function getPopularProducts(req, res) {
             },
             take: limitNum
         });
-        // Format the response
-        const formattedProducts = popularProducts.map(product => ({
-            ...product,
-            popularity: product._count.itemsCart,
-            _count: undefined // Remove the _count field from response
+        // Format the response with image URLs if they exist
+        const formattedProducts = await Promise.all(popularProducts.map(async product => {
+            const imagePath = path.join(__dirname, '../../uploads/products', `product-${product.idProduct}.jpg`);
+            
+            const productObj = {
+                ...product,
+                popularity: product._count.itemsCart,
+                _count: undefined // Remove the _count field from response
+            };
+            
+            if (fs.existsSync(imagePath)) {
+                // Add image URL only if the image exists
+                productObj.image_url = `/api/products/${product.idProduct}/image`;
+            }
+            
+            return productObj;
         }));
 
         return res.status(200).json({

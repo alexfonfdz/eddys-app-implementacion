@@ -24,6 +24,7 @@ async function createOrder(userId, orderData) {
   }
 
   let orderResult;
+  let userInfo;
 
   // Execute the order creation in a transaction
   await prisma.$transaction(async (tx) => {
@@ -34,6 +35,7 @@ async function createOrder(userId, orderData) {
         status: true,
       },
       include: {
+        user: true,
         itemsCart: {
           where: { status: true },
           include: { product: true },
@@ -44,6 +46,9 @@ async function createOrder(userId, orderData) {
     if (!cart || cart.itemsCart.length === 0) {
       throw new Error('No hay productos en el carrito');
     }
+
+    // Store user info for notification
+    userInfo = cart.user;
 
     // 2. Calculate total price from cart items
     const itemsTotal = cart.itemsCart.reduce((sum, item) => {
@@ -74,6 +79,27 @@ async function createOrder(userId, orderData) {
   });
 
   // Now that the transaction has committed, the order is visible in the database
+
+  // 4. Send notification to all admin users about the new order
+  const notificationService = require('./notification.service');
+  const userName = userInfo.username;
+  
+  // Check if it's cash payment (typically idPaymentType = 1)
+  if (idPaymentType === 1) {
+    // For cash payments, notify admins immediately
+    await notificationService.sendNotificationsToAdmins({
+      title: '¡Nuevo pedido en efectivo!',
+      body: `El usuario ${userName} ha realizado el pedido #${orderResult.idOrder} por $${orderResult.totalPrice} a pagar en efectivo.`,
+      data: {
+        type: 'NEW_CASH_ORDER',
+        orderId: orderResult.idOrder,
+        userId: userInfo.idUser,
+        userName: userName,
+        amount: orderResult.totalPrice,
+        paymentType: 'cash'
+      }
+    });
+  }
 
   // 5. If it's a card payment (PaymentType 2 or 3), create payment intent
   if (idPaymentType === 2 || idPaymentType === 3) {
@@ -169,6 +195,7 @@ async function getUserOrdersDetailsService(userId) {
       paymentType: true,
       shipmentType: true,
       orderStatus: true,
+      location: true, // Include location details
     },
     orderBy: { createdAt: 'desc' },
   });
@@ -177,8 +204,23 @@ async function getUserOrdersDetailsService(userId) {
     throw new Error('Ordenes no encontrada');
   }
 
-  return orders;
+  // Add formatted location string to each order
+  const ordersWithFormattedLocation = orders.map(order => {
+    let locationFormatted = null;
+    if (order.location) {
+      locationFormatted = `${order.location.street}, ${order.location.houseNumber}\n${order.location.neighborhood}\n${order.location.postalCode}`;
+    }
+
+    return {
+      ...order,
+      locationFormatted
+    };
+  });
+
+  return ordersWithFormattedLocation;
 }
+
+
 
 /**
  * Process Stripe webhook events
@@ -212,6 +254,13 @@ async function handlePaymentSucceeded(paymentIntent) {
     // Find order by payment intent ID
     const order = await prisma.order.findUnique({
       where: { stripePaymentIntentId: paymentIntent.id },
+      include: { 
+        cart: { 
+          include: { 
+            user: true 
+          } 
+        } 
+      },
     });
 
     if (!order) {
@@ -220,28 +269,65 @@ async function handlePaymentSucceeded(paymentIntent) {
       );
     }
 
-    // Update order status to paid
-    const updatedOrder = await prisma.order.update({
-      where: { idOrder: order.idOrder },
-      data: {
-        paid: true,
-        paidAt: new Date(),
-        idOrderStatus: 2, // Assuming 2 is "Processing" or "Paid"
-        stripePaymentStatus: paymentIntent.status,
-      },
+    // Execute database operations in a transaction
+    const result = await prisma.$transaction(async (tx) => {
+      // 1. Update order status to paid
+      const updatedOrder = await tx.order.update({
+        where: { idOrder: order.idOrder },
+        data: {
+          paid: true,
+          paidAt: new Date(),
+          idOrderStatus: 4, // 4 is "Listo para enviar"
+          stripePaymentStatus: paymentIntent.status,
+        },
+      });
+
+      // 2. Disable the cart associated with the order
+      await tx.cart.update({
+        where: { idCart: order.idCart },
+        data: { status: false },
+      });
+
+      // 3. Create a notification for the successful payment
+      const notification = await tx.notification.create({
+        data: {
+          idOrder: order.idOrder,
+          title: 'Pago recibido',
+          message: `El pago de $${order.totalPrice} ha sido procesado exitosamente.`,
+          status: true,
+        },
+      });
+
+      return {
+        updatedOrder,
+        notification,
+      };
     });
 
-    // Create a notification for the successful payment
-    await prisma.notification.create({
+    console.log(
+      `Order ${order.idOrder} paid successfully and cart ${order.idCart} disabled`
+    );
+
+    // 4. Send notification to all admin users about the new paid order
+    const notificationService = require('./notification.service');
+    const userName = `${order.cart.user.username}`;
+    await notificationService.sendNotificationsToAdmins({
+      title: '¡Nuevo pedido pagado!',
+      body: `El usuario ${userName} ha realizado el pedido #${order.idOrder} por $${order.totalPrice}.`,
       data: {
-        idOrder: order.idOrder,
-        title: 'Pago recibido',
-        message: `El pago de $${order.totalPrice} ha sido procesado exitosamente.`,
-        status: true,
-      },
+        type: 'NEW_PAID_ORDER',
+        orderId: order.idOrder,
+        userId: order.cart.user.idUser,
+        userName: userName,
+        amount: order.totalPrice
+      }
     });
 
-    return { success: true, order: updatedOrder };
+    return {
+      success: true,
+      order: result.updatedOrder,
+      cartDisabled: true,
+    };
   } catch (error) {
     console.error('Error handling payment success:', error);
     return { success: false, error: error.message };
@@ -397,6 +483,7 @@ async function getOrdersByStatus({ status, page = 1, limit = 10 }) {
       orderStatus: true,
       paymentType: true,
       shipmentType: true,
+      location: true, // Include location details
       cart: {
         include: {
           itemsCart: {
@@ -414,11 +501,20 @@ async function getOrdersByStatus({ status, page = 1, limit = 10 }) {
     },
   });
 
-  // Sanitize the order data , removing stripe client secret, with the map function
-
+  // Sanitize the order data and add formatted location string
   const sanitizedOrders = orders.map((order) => {
     const { stripeClientSecret, ...rest } = order;
-    return rest;
+
+    // Add formatted location string if location exists
+    let locationFormatted = null;
+    if (order.location) {
+      locationFormatted = `${order.location.street}, ${order.location.houseNumber}\n${order.location.neighborhood}\n${order.location.postalCode}`;
+    }
+
+    return {
+      ...rest,
+      locationFormatted
+    };
   });
 
   // Return the sanitized orders

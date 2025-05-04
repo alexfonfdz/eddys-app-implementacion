@@ -49,6 +49,23 @@ async function uploadProductImage(req, res) {
         if (!req.file) {
             return res.status(400).json({ message: "No se ha subido ninguna imagen" });
         }
+        
+        // Since all images are now converted to JPG, we only need to check for one file
+        const uploadDir = path.join(__dirname, '../../uploads/products');
+        const fileNameBase = `product-${productId}`;
+        const oldImagePath = path.join(uploadDir, `${fileNameBase}.jpg`);
+        
+        try {
+            // Check if existing JPG image exists and is different from the new one
+            if (fs.existsSync(oldImagePath) && 
+                path.join(uploadDir, req.file.filename) !== oldImagePath) {
+                console.log(`Removing old image file: ${oldImagePath}`);
+                fs.unlinkSync(oldImagePath);
+            }
+        } catch (fsError) {
+            console.error('Error managing existing files:', fsError);
+            // Continue processing even if file cleanup fails
+        }
 
         // Get the filename that was created
         const filename = path.basename(req.file.path);
@@ -58,7 +75,8 @@ async function uploadProductImage(req, res) {
             product: {
                 idProduct: product.idProduct,
                 name: product.name,
-                imageUrl: `/uploads/products/${filename}`
+                imageUrl: `/uploads/products/${filename}`,
+                image_url: `/api/products/${product.idProduct}/image`
             }
         });
     } catch (error) {
