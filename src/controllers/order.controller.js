@@ -190,15 +190,24 @@ async function searchOrders(req, res) {
     }
 }
 
+/**
+ * Get active orders with pagination
+ * @route GET /api/admin/orders/current
+ * @param {number} req.query.page - Page number (default: 1)
+ * @param {number} req.query.limit - Number of orders per page (default: 10)
+ * @returns {Object} - Active orders with pagination info
+ */
 async function getActiveOrders(req, res) {
     try {
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 10;
+        const sortSequence = 'asc';
 
         const filter = {
             status: { notIn: [6, 7] }, // No entregado ni cancelado
             page,
-            limit
+            limit,
+            sortSequence
         };
 
         const result = await orderService.getOrdersByStatus(filter);
@@ -217,11 +226,13 @@ async function getOrderHistory(req, res) {
     try {
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 10;
+        const sortSequence = 'desc';
 
         const filter = {
             status: { in: [6, 7] }, // Solo entregado y cancelado
             page,
-            limit
+            limit,
+            sortSequence
         };
 
         const result = await orderService.getOrdersByStatus(filter);

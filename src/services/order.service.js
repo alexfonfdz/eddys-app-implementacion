@@ -83,7 +83,7 @@ async function createOrder(userId, orderData) {
   // 4. Send notification to all admin users about the new order
   const notificationService = require('./notification.service');
   const userName = userInfo.username;
-  
+
   // Check if it's cash payment (typically idPaymentType = 1)
   if (idPaymentType === 1) {
     // For cash payments, notify admins immediately
@@ -96,8 +96,8 @@ async function createOrder(userId, orderData) {
         userId: userInfo.idUser,
         userName: userName,
         amount: orderResult.totalPrice,
-        paymentType: 'cash'
-      }
+        paymentType: 'cash',
+      },
     });
   }
 
@@ -140,7 +140,18 @@ async function getOrderDetails(orderId, userId) {
       cart: {
         include: {
           itemsCart: {
-            include: { product: true },
+            include: { 
+              product: true,
+              userProductPersonalize: {
+                include: {
+                  productPersonalization: {
+                    include: {
+                      personalization: true
+                    }
+                  }
+                }
+              }
+            },
           },
         },
       },
@@ -154,7 +165,37 @@ async function getOrderDetails(orderId, userId) {
     throw new Error('Orden no encontrada');
   }
 
-  return order;
+  // Format cart items to include personalization details
+  let formattedItems = [];
+  
+  if (order.cart && order.cart.itemsCart) {
+    // Filter out items with quantity <= 0
+    const validItems = order.cart.itemsCart.filter(item => item.quantity > 0);
+    
+    // Format each item to include its personalizations
+    formattedItems = validItems.map(item => {
+      // Extract personalization information
+      const personalizations = item.userProductPersonalize?.map(upp => ({
+        idPersonalization: upp.productPersonalization.personalization.idPersonalization,
+        name: upp.productPersonalization.personalization.name
+      })) || [];
+      
+      return {
+        idItemCart: item.idItemCart,
+        idProduct: item.idProduct,
+        quantity: item.quantity,
+        individualPrice: item.individualPrice,
+        product: item.product,
+        personalizations: personalizations
+      };
+    });
+  }
+
+  // Return the order with formatted items
+  return {
+    ...order,
+    items: formattedItems
+  };
 }
 
 /**
@@ -171,11 +212,65 @@ async function getUserOrders(userId) {
       orderStatus: true,
       shipmentType: true,
       paymentType: true,
+      cart: {
+        include: {
+          itemsCart: {
+            where: { status: true },
+            include: { 
+              product: true,
+              userProductPersonalize: {
+                include: {
+                  productPersonalization: {
+                    include: {
+                      personalization: true
+                    }
+                  }
+                }
+              }
+            },
+          },
+        },
+      },
     },
     orderBy: { createdAt: 'desc' },
   });
 
-  return orders;
+  // Filter out items with quantity <= 0 and restructure response
+  const formattedOrders = orders.map(order => {
+    // Format cart items to include personalization details
+    let formattedItems = [];
+    
+    if (order.cart && order.cart.itemsCart) {
+      // Filter out items with quantity <= 0
+      const validItems = order.cart.itemsCart.filter(item => item.quantity > 0);
+      
+      // Format each item to include its personalizations
+      formattedItems = validItems.map(item => {
+        // Extract personalization information
+        const personalizations = item.userProductPersonalize.map(upp => ({
+          idPersonalization: upp.productPersonalization.personalization.idPersonalization,
+          name: upp.productPersonalization.personalization.name
+        }));
+        
+        return {
+          idItemCart: item.idItemCart,
+          idProduct: item.idProduct,
+          quantity: item.quantity,
+          individualPrice: item.individualPrice,
+          product: item.product,
+          personalizations: personalizations
+        };
+      });
+    }
+    
+    // Return formatted order
+    return {
+      ...order,
+      items: formattedItems,
+    };
+  });
+
+  return formattedOrders;
 }
 
 async function getUserOrdersDetailsService(userId) {
@@ -188,7 +283,18 @@ async function getUserOrdersDetailsService(userId) {
       cart: {
         include: {
           itemsCart: {
-            include: { product: true },
+            include: { 
+              product: true,
+              userProductPersonalize: {
+                include: {
+                  productPersonalization: {
+                    include: {
+                      personalization: true
+                    }
+                  }
+                }
+              }
+            },
           },
         },
       },
@@ -204,23 +310,49 @@ async function getUserOrdersDetailsService(userId) {
     throw new Error('Ordenes no encontrada');
   }
 
-  // Add formatted location string to each order
-  const ordersWithFormattedLocation = orders.map(order => {
+  // Add formatted location string to each order and format items with personalization details
+  const formattedOrders = orders.map((order) => {
+    // Format location
     let locationFormatted = null;
     if (order.location) {
       locationFormatted = `${order.location.street}, ${order.location.houseNumber}\n${order.location.neighborhood}\n${order.location.postalCode}`;
     }
 
+    // Format cart items to include personalization details
+    let formattedItems = [];
+    
+    if (order.cart && order.cart.itemsCart) {
+      // Filter out items with quantity <= 0
+      const validItems = order.cart.itemsCart.filter(item => item.quantity > 0);
+      
+      // Format each item to include its personalizations
+      formattedItems = validItems.map(item => {
+        // Extract personalization information
+        const personalizations = item.userProductPersonalize?.map(upp => ({
+          idPersonalization: upp.productPersonalization.personalization.idPersonalization,
+          name: upp.productPersonalization.personalization.name
+        })) || [];
+        
+        return {
+          idItemCart: item.idItemCart,
+          idProduct: item.idProduct,
+          quantity: item.quantity,
+          individualPrice: item.individualPrice,
+          product: item.product,
+          personalizations: personalizations
+        };
+      });
+    }
+
     return {
       ...order,
-      locationFormatted
+      locationFormatted,
+      items: formattedItems
     };
   });
 
-  return ordersWithFormattedLocation;
+  return formattedOrders;
 }
-
-
 
 /**
  * Process Stripe webhook events
@@ -254,12 +386,12 @@ async function handlePaymentSucceeded(paymentIntent) {
     // Find order by payment intent ID
     const order = await prisma.order.findUnique({
       where: { stripePaymentIntentId: paymentIntent.id },
-      include: { 
-        cart: { 
-          include: { 
-            user: true 
-          } 
-        } 
+      include: {
+        cart: {
+          include: {
+            user: true,
+          },
+        },
       },
     });
 
@@ -319,8 +451,8 @@ async function handlePaymentSucceeded(paymentIntent) {
         orderId: order.idOrder,
         userId: order.cart.user.idUser,
         userName: userName,
-        amount: order.totalPrice
-      }
+        amount: order.totalPrice,
+      },
     });
 
     return {
@@ -469,7 +601,7 @@ async function searchOrders(userId, filters) {
 }
 
 // Get all active orders from all users for the admin panel (where order status could be set to multiple numbers from 1 to 7) with pagination
-async function getOrdersByStatus({ status, page = 1, limit = 10 }) {
+async function getOrdersByStatus({ status, page = 1, limit = 10, sortSequence }) {
   const skip = (parseInt(page) - 1) * parseInt(limit);
   const where = {
     idOrderStatus: status,
@@ -486,9 +618,30 @@ async function getOrdersByStatus({ status, page = 1, limit = 10 }) {
       location: true, // Include location details
       cart: {
         include: {
+          user: {
+            select: {
+              idUser: true,
+              idUserType: true,
+              email: true,
+              username: true,
+              status: true,
+              createdAt: true,
+              updatedAt: true,
+              userInformation: true, // Include user details to get name and lastName
+            },
+          },
           itemsCart: {
             include: {
               product: true,
+              userProductPersonalize: {
+                include: {
+                  productPersonalization: {
+                    include: {
+                      personalization: true
+                    }
+                  }
+                }
+              }
             },
           },
         },
@@ -497,7 +650,7 @@ async function getOrdersByStatus({ status, page = 1, limit = 10 }) {
     skip,
     take: parseInt(limit),
     orderBy: {
-      createdAt: 'desc',
+      createdAt: sortSequence, // Order by createdAt based on sortSequence
     },
   });
 
@@ -505,15 +658,58 @@ async function getOrdersByStatus({ status, page = 1, limit = 10 }) {
   const sanitizedOrders = orders.map((order) => {
     const { stripeClientSecret, ...rest } = order;
 
+    // Format cart items to include personalization details
+    let formattedItems = [];
+    
+    if (order.cart && order.cart.itemsCart) {
+      // Filter out items with quantity <= 0
+      const validItems = order.cart.itemsCart.filter(item => item.quantity > 0);
+      
+      // Format each item to include its personalizations
+      formattedItems = validItems.map(item => {
+        // Extract personalization information
+        const personalizations = item.userProductPersonalize?.map(upp => ({
+          idPersonalization: upp.productPersonalization.personalization.idPersonalization,
+          name: upp.productPersonalization.personalization.name
+        })) || [];
+        
+        return {
+          idItemCart: item.idItemCart,
+          idProduct: item.idProduct,
+          quantity: item.quantity,
+          individualPrice: item.individualPrice,
+          product: item.product,
+          personalizations: personalizations
+        };
+      });
+    }
+
     // Add formatted location string if location exists
     let locationFormatted = null;
     if (order.location) {
       locationFormatted = `${order.location.street}, ${order.location.houseNumber}\n${order.location.neighborhood}\n${order.location.postalCode}`;
     }
 
+    // Add client name and phone number from user information
+    let clientName = 'Usuario desconocido';
+    let phoneNumber = null;
+    if (order.cart.user) {
+      // Check if userInformation is included and has name/lastName
+      if (order.cart.user.userInformation) {
+        clientName = `${order.cart.user.userInformation.name} ${order.cart.user.userInformation.lastName}`;
+        phoneNumber = order.cart.user.userInformation.phone;
+      } else {
+        // Fallback to username if userInformation not available
+        clientName = order.cart.user.username;
+      }
+    }
+
     return {
       ...rest,
-      locationFormatted
+      clientName,
+      phoneNumber,
+      locationFormatted,
+      items: formattedItems
     };
   });
 

@@ -42,8 +42,13 @@ async function getOrdersByDateRange(req, res) {
                     include: {
                         user: {
                             select: {
+                                idUser: true,
+                                idUserType: true,
                                 email: true,
                                 username: true,
+                                status: true,
+                                createdAt: true,
+                                updatedAt: true,
                                 userInformation: {
                                     select: {
                                         name: true,
@@ -56,7 +61,18 @@ async function getOrdersByDateRange(req, res) {
                         },
                         itemsCart: {
                             where: { status: true },
-                            include: { product: true }
+                            include: { 
+                                product: true,
+                                userProductPersonalize: {
+                                    include: {
+                                        productPersonalization: {
+                                            include: {
+                                                personalization: true
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 },
@@ -92,7 +108,18 @@ const getOrdersByProducts = async (req, res) => {
                     include: {
                         itemsCart: {
                             where: { status: true },
-                            include: { product: true }
+                            include: { 
+                                product: true,
+                                userProductPersonalize: {
+                                    include: {
+                                        productPersonalization: {
+                                            include: {
+                                                personalization: true
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 },
@@ -171,7 +198,18 @@ async function getOrderById(req, res) {
                         },
                         itemsCart: {
                             where: { status: true },
-                            include: { product: true }
+                            include: { 
+                                product: true,
+                                userProductPersonalize: {
+                                    include: {
+                                        productPersonalization: {
+                                            include: {
+                                                personalization: true
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 },
